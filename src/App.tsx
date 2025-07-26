@@ -5,17 +5,6 @@ import { BrowserRouter as Router, Route, Switch } from 'react-router-dom';
 import PatientDetail from './components/PatientDetail';
 import Auth from './components/Auth';
 
-// Theme Colors
-const theme = {
-  colors: {
-    primary: '#5A8B7B',    // Muted Sage Green
-    text: '#434242',       // Deep Earthy Gray
-    subtle: '#F9F9F8',     // Warm Off-White
-    base: '#FFFFFF',       // Base White
-    primaryOpacity: 'rgba(90, 139, 123, 0.25)', // Primary with 25% opacity
-  }
-};
-
 // Sample medications data
 const medications = [
   { id: 1, name: "Lisinopril", dosage: "10 MG", frequency: "ONCE A DAY", type: "ACE Inhibitor", description: "Used to treat high blood pressure and heart failure", stock: 150, status: "In Stock", color: "green" },
