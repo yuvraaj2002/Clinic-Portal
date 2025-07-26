@@ -1,0 +1,34 @@
+import { heroui } from "@heroui/react";
+
+/** @type {import('tailwindcss').Config} */
+export default {
+	content: [
+		"./index.html",
+		"./src/**/*.{js,ts,jsx,tsx}",
+		"./node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}",
+	],
+	theme: {
+		extend: {
+			colors: {
+				'clinic-green': {
+					50: '#f0fdf4',
+					100: '#dcfce7',
+					200: '#bbf7d0',
+					300: '#86efac',
+					400: '#4ade80',
+					500: '#22c55e',
+					600: '#16a34a',
+					700: '#15803d',
+					800: '#166534',
+					900: '#14532d',
+				},
+				'clinic-dark': '#2D3748',
+			},
+			fontFamily: {
+				'sans': ['Inter', 'Manrope', 'system-ui', 'sans-serif'],
+			},
+		},
+	},
+	darkMode: "class",
+	plugins: [heroui()],
+};

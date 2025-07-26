@@ -1,0 +1,49 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Manrope:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    body {
+        font-family: 'Inter', 'Manrope', system-ui, sans-serif;
+    }
+}
+
+@layer components {
+    .table-row-hover {
+        @apply transition-all duration-200 ease-in-out;
+    }
+
+    .table-row-hover:hover {
+        @apply bg-clinic-dark text-white;
+    }
+
+    .table-row-hover-light-green {
+        @apply transition-all duration-200 ease-in-out;
+    }
+
+    .table-row-hover-light-green:hover {
+        @apply bg-clinic-green-50;
+    }
+
+    .premium-button {
+        @apply bg-clinic-green-500 hover:bg-clinic-green-600 text-white font-medium px-6 py-3 rounded-lg transition-all duration-200 ease-in-out shadow-sm hover:shadow-md;
+    }
+
+    .premium-input {
+        @apply border-gray-200 focus:border-clinic-green-500 focus:ring-clinic-green-500/20 transition-all duration-200;
+    }
+
+    .premium-tab {
+        @apply transition-all duration-200 ease-in-out;
+    }
+
+    .premium-tab[data-selected="true"] {
+        @apply bg-clinic-green-500 text-white;
+    }
+
+    .premium-tab[data-selected="false"] {
+        @apply text-gray-600 hover:text-gray-800 hover:bg-gray-50;
+    }
+}
