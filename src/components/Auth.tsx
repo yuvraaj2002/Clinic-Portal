@@ -69,15 +69,15 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
     };
 
     return (
-        <div className="min-h-screen bg-[#F9F9F8] flex items-center justify-center p-4">
+        <div className="min-h-screen bg-gradient-to-br from-clinic-light to-white flex items-center justify-center p-4">
             <div className="w-full max-w-md">
                 {/* Logo/Brand Section */}
                 <div className="text-center mb-8">
-                    <div className="w-16 h-16 bg-[#5A8B7B] rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                        <Icon icon="lucide:heart-pulse" className="w-8 h-8 text-white" />
+                    <div className="w-16 h-16 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                        <Icon icon="lucide:rocket" className="w-8 h-8 text-white" />
                     </div>
-                    <h1 className="text-2xl font-bold text-[#434242] mb-2">Clinic Portal</h1>
-                    <p className="text-[#434242]/70 text-sm">Welcome back to your healthcare dashboard</p>
+                    <h1 className="text-2xl font-bold text-gray-800 mb-2">OHC Pharmacy</h1>
+                    <p className="text-gray-600 text-sm">Welcome back to your healthcare dashboard</p>
                 </div>
 
                 {/* Auth Card */}
@@ -85,10 +85,10 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
                     <CardBody className="p-8">
                         {/* Header */}
                         <div className="text-center mb-8">
-                            <h2 className="text-2xl font-bold text-[#434242] mb-2">
+                            <h2 className="text-2xl font-bold text-gray-800 mb-2">
                                 Sign In
                             </h2>
-                            <p className="text-[#434242]/70 text-sm">
+                            <p className="text-gray-600 text-sm">
                                 Access your patient records and medications
                             </p>
                         </div>
@@ -110,13 +110,13 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
                                 onChange={(e) => handleInputChange('email', e.target.value)}
                                 required
                                 classNames={{
-                                    label: "text-[#434242] font-medium",
-                                    input: "text-[#434242] placeholder-gray-400 focus:outline-none",
-                                    inputWrapper: "bg-white border border-gray-200 hover:border-[#5A8B7B] focus-within:border-[#5A8B7B] focus-within:ring-1 focus-within:ring-[#5A8B7B]/20 focus:outline-none focus:ring-0",
+                                    label: "text-gray-700 font-medium",
+                                    input: "text-gray-800 placeholder-gray-400 focus:outline-none",
+                                    inputWrapper: "bg-white border border-gray-200 hover:border-clinic-purple-500 focus-within:border-clinic-purple-500 focus-within:ring-1 focus-within:ring-clinic-purple-500/20 focus:outline-none focus:ring-0",
                                     innerWrapper: "focus:outline-none focus:ring-0",
                                     mainWrapper: "focus:outline-none focus:ring-0",
                                 }}
-                                startContent={<Icon icon="lucide:mail" className="text-[#5A8B7B] w-4 h-4" />}
+                                startContent={<Icon icon="lucide:mail" className="text-primary-600 w-4 h-4" />}
                             />
 
                             <Input
@@ -127,19 +127,19 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
                                 onChange={(e) => handleInputChange('password', e.target.value)}
                                 required
                                 classNames={{
-                                    label: "text-[#434242] font-medium",
-                                    input: "text-[#434242] placeholder-gray-400 focus:outline-none",
-                                    inputWrapper: "bg-white border border-gray-200 hover:border-[#5A8B7B] focus-within:border-[#5A8B7B] focus-within:ring-1 focus-within:ring-[#5A8B7B]/20 focus:outline-none focus:ring-0",
+                                    label: "text-gray-700 font-medium",
+                                    input: "text-gray-800 placeholder-gray-400 focus:outline-none",
+                                    inputWrapper: "bg-white border border-gray-200 hover:border-clinic-purple-500 focus-within:border-clinic-purple-500 focus-within:ring-1 focus-within:ring-clinic-purple-500/20 focus:outline-none focus:ring-0",
                                     innerWrapper: "focus:outline-none focus:ring-0",
                                     mainWrapper: "focus:outline-none focus:ring-0",
                                 }}
-                                startContent={<Icon icon="lucide:lock" className="text-[#5A8B7B] w-4 h-4" />}
+                                startContent={<Icon icon="lucide:lock" className="text-primary-600 w-4 h-4" />}
                             />
 
                             {/* Submit Button */}
                             <Button
                                 type="submit"
-                                className="w-full bg-[#5A8B7B] hover:bg-[#4A7A6B] text-white font-semibold py-3 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-full bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-primary-600 hover:to-secondary-600 text-white font-semibold py-3 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
                                 size="lg"
                                 disabled={isLoading}
                             >
@@ -156,11 +156,11 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
 
                         {/* Footer */}
                         <div className="text-center mt-8">
-                            <p className="text-[#434242]/50 text-xs">
+                            <p className="text-gray-400 text-xs">
                                 By continuing, you agree to our{' '}
-                                <a href="#" className="text-[#5A8B7B] hover:underline">Terms of Service</a>
+                                <a href="#" className="text-primary-600 hover:underline">Terms of Service</a>
                                 {' '}and{' '}
-                                <a href="#" className="text-[#5A8B7B] hover:underline">Privacy Policy</a>
+                                <a href="#" className="text-primary-600 hover:underline">Privacy Policy</a>
                             </p>
                         </div>
                     </CardBody>
@@ -168,7 +168,7 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
 
                 {/* Footer */}
                 <div className="text-center mt-8">
-                    <p className="text-[#434242]/50 text-xs">
+                    <p className="text-gray-400 text-xs">
                         Need access? Contact your administrator for an invite.
                     </p>
                 </div>

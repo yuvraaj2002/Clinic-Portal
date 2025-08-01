@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Card, CardBody, Input, Button, Alert } from "@heroui/react";
+import { Card, CardBody, Input, Button } from "@heroui/react";
 import { Icon } from "@iconify/react";
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://ohc-backend.blyssbot.com';
 
 interface SetPasswordProps {
     onAuthSuccess: () => void;
@@ -103,10 +105,7 @@ const SetPassword: React.FC<SetPasswordProps> = ({ onAuthSuccess }) => {
 
         setIsLoading(true);
         try {
-            const token = new URLSearchParams(location.search).get('token');
-            const apiUrl = 'https://ohc-backend.blyssbot.com';
-
-            const response = await fetch(`${apiUrl}/auth/signup`, {
+            const response = await fetch(`${API_BASE_URL}/auth/signup`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -132,7 +131,7 @@ const SetPassword: React.FC<SetPasswordProps> = ({ onAuthSuccess }) => {
             sessionStorage.setItem('token_type', data.token_type);
 
             // Fetch user info and update AuthProvider state
-            const userRes = await fetch(`${apiUrl}/auth/me`, {
+            const userRes = await fetch(`${API_BASE_URL}/auth/me`, {
                 headers: {
                     Authorization: `Bearer ${data.access_token}`,
                 },
@@ -155,25 +154,25 @@ const SetPassword: React.FC<SetPasswordProps> = ({ onAuthSuccess }) => {
 
     if (!email) {
         return (
-            <div className="min-h-screen bg-[#F9F9F8] flex items-center justify-center">
+            <div className="min-h-screen bg-gradient-to-br from-clinic-light to-white flex items-center justify-center">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#5A8B7B] mx-auto"></div>
-                    <p className="mt-4 text-[#434242]">Loading...</p>
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-clinic-purple-600 mx-auto"></div>
+                    <p className="mt-4 text-gray-600">Loading...</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-[#F9F9F8] flex items-center justify-center p-4">
+        <div className="min-h-screen bg-gradient-to-br from-clinic-light to-white flex items-center justify-center p-4">
             <div className="w-full max-w-md">
                 {/* Logo/Brand Section */}
                 <div className="text-center mb-8">
-                    <div className="w-16 h-16 bg-[#5A8B7B] rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                        <Icon icon="lucide:lock" className="w-8 h-8 text-white" />
+                    <div className="w-16 h-16 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                        <Icon icon="lucide:rocket" className="w-8 h-8 text-white" />
                     </div>
-                    <h1 className="text-2xl font-bold text-[#434242] mb-2">Clinic Portal</h1>
-                    <p className="text-[#434242]/70 text-sm">Set your password to complete account setup</p>
+                    <h1 className="text-2xl font-bold text-gray-800 mb-2">OHC Pharmacy</h1>
+                    <p className="text-gray-600 text-sm">Set your password to complete account setup</p>
                 </div>
 
                 {/* Set Password Card */}
@@ -181,10 +180,10 @@ const SetPassword: React.FC<SetPasswordProps> = ({ onAuthSuccess }) => {
                     <CardBody className="p-8">
                         {/* Header */}
                         <div className="text-center mb-8">
-                            <h2 className="text-2xl font-bold text-[#434242] mb-2">
+                            <h2 className="text-2xl font-bold text-gray-800 mb-2">
                                 Set Your Password
                             </h2>
-                            <p className="text-[#434242]/70 text-sm">
+                            <p className="text-gray-600 text-sm">
                                 Welcome! Please set your password to complete your account setup
                             </p>
                         </div>
@@ -192,13 +191,13 @@ const SetPassword: React.FC<SetPasswordProps> = ({ onAuthSuccess }) => {
                         {/* Form */}
                         <form onSubmit={handleSubmit} className="space-y-6">
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-[#434242]">Email</label>
+                                <label className="text-sm font-medium text-gray-700">Email</label>
                                 <Input
                                     type="email"
                                     value={email}
                                     disabled
                                     classNames={{
-                                        input: "text-[#434242] bg-gray-100 cursor-not-allowed",
+                                        input: "text-gray-800 bg-gray-100 cursor-not-allowed",
                                         inputWrapper: "bg-gray-100 border border-gray-200",
                                     }}
                                 />
@@ -213,13 +212,13 @@ const SetPassword: React.FC<SetPasswordProps> = ({ onAuthSuccess }) => {
                                 name="username"
                                 required
                                 classNames={{
-                                    label: "text-[#434242] font-medium",
-                                    input: "text-[#434242] placeholder-gray-400 focus:outline-none",
-                                    inputWrapper: "bg-white border border-gray-200 hover:border-[#5A8B7B] focus-within:border-[#5A8B7B] focus-within:ring-1 focus-within:ring-[#5A8B7B]/20 focus:outline-none focus:ring-0",
+                                    label: "text-gray-700 font-medium",
+                                    input: "text-gray-800 placeholder-gray-400 focus:outline-none",
+                                    inputWrapper: "bg-white border border-gray-200 hover:border-clinic-purple-500 focus-within:border-clinic-purple-500 focus-within:ring-1 focus-within:ring-clinic-purple-500/20 focus:outline-none focus:ring-0",
                                     innerWrapper: "focus:outline-none focus:ring-0",
                                     mainWrapper: "focus:outline-none focus:ring-0",
                                 }}
-                                startContent={<Icon icon="lucide:user" className="text-[#5A8B7B] w-4 h-4" />}
+                                startContent={<Icon icon="lucide:user" className="text-primary-600 w-4 h-4" />}
                             />
 
                             <Input
@@ -231,13 +230,13 @@ const SetPassword: React.FC<SetPasswordProps> = ({ onAuthSuccess }) => {
                                 name="newPassword"
                                 required
                                 classNames={{
-                                    label: "text-[#434242] font-medium",
-                                    input: "text-[#434242] placeholder-gray-400 focus:outline-none",
-                                    inputWrapper: "bg-white border border-gray-200 hover:border-[#5A8B7B] focus-within:border-[#5A8B7B] focus-within:ring-1 focus-within:ring-[#5A8B7B]/20 focus:outline-none focus:ring-0",
+                                    label: "text-gray-700 font-medium",
+                                    input: "text-gray-800 placeholder-gray-400 focus:outline-none",
+                                    inputWrapper: "bg-white border border-gray-200 hover:border-clinic-purple-500 focus-within:border-clinic-purple-500 focus-within:ring-1 focus-within:ring-clinic-purple-500/20 focus:outline-none focus:ring-0",
                                     innerWrapper: "focus:outline-none focus:ring-0",
                                     mainWrapper: "focus:outline-none focus:ring-0",
                                 }}
-                                startContent={<Icon icon="lucide:lock" className="text-[#5A8B7B] w-4 h-4" />}
+                                startContent={<Icon icon="lucide:lock" className="text-clinic-purple-600 w-4 h-4" />}
                             />
 
                             <Input
@@ -249,13 +248,13 @@ const SetPassword: React.FC<SetPasswordProps> = ({ onAuthSuccess }) => {
                                 name="confirmPassword"
                                 required
                                 classNames={{
-                                    label: "text-[#434242] font-medium",
-                                    input: "text-[#434242] placeholder-gray-400 focus:outline-none",
-                                    inputWrapper: "bg-white border border-gray-200 hover:border-[#5A8B7B] focus-within:border-[#5A8B7B] focus-within:ring-1 focus-within:ring-[#5A8B7B]/20 focus:outline-none focus:ring-0",
+                                    label: "text-gray-700 font-medium",
+                                    input: "text-gray-800 placeholder-gray-400 focus:outline-none",
+                                    inputWrapper: "bg-white border border-gray-200 hover:border-clinic-purple-500 focus-within:border-clinic-purple-500 focus-within:ring-1 focus-within:ring-clinic-purple-500/20 focus:outline-none focus:ring-0",
                                     innerWrapper: "focus:outline-none focus:ring-0",
                                     mainWrapper: "focus:outline-none focus:ring-0",
                                 }}
-                                startContent={<Icon icon="lucide:lock" className="text-[#5A8B7B] w-4 h-4" />}
+                                startContent={<Icon icon="lucide:lock" className="text-clinic-purple-600 w-4 h-4" />}
                             />
 
                             {passwordError && (
@@ -270,7 +269,7 @@ const SetPassword: React.FC<SetPasswordProps> = ({ onAuthSuccess }) => {
                             {/* Submit Button */}
                             <Button
                                 type="submit"
-                                className="w-full bg-[#5A8B7B] hover:bg-[#4A7A6B] text-white font-semibold py-3 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
+                                className="w-full bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-primary-600 hover:to-secondary-600 text-white font-semibold py-3 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
                                 size="lg"
                                 disabled={isLoading}
                             >
@@ -290,11 +289,11 @@ const SetPassword: React.FC<SetPasswordProps> = ({ onAuthSuccess }) => {
 
                         {/* Footer */}
                         <div className="text-center mt-8">
-                            <p className="text-[#434242]/50 text-xs">
+                            <p className="text-gray-400 text-xs">
                                 By continuing, you agree to our{' '}
-                                <a href="#" className="text-[#5A8B7B] hover:underline">Terms of Service</a>
+                                <a href="#" className="text-primary-600 hover:underline">Terms of Service</a>
                                 {' '}and{' '}
-                                <a href="#" className="text-[#5A8B7B] hover:underline">Privacy Policy</a>
+                                <a href="#" className="text-primary-600 hover:underline">Privacy Policy</a>
                             </p>
                         </div>
                     </CardBody>

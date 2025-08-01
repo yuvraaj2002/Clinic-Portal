@@ -1,6 +1,5 @@
 // API utility functions for making authenticated requests
-
-const API_BASE_URL = 'https://ohc-backend.blyssbot.com';
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 export const apiCall = async (
     endpoint: string,

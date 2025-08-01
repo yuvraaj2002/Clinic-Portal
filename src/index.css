@@ -16,23 +16,23 @@
     }
 
     .table-row-hover:hover {
-        @apply bg-clinic-dark text-white;
+        @apply bg-primary-50 text-primary-700;
     }
 
-    .table-row-hover-light-green {
+    .table-row-hover-light-primary {
         @apply transition-all duration-200 ease-in-out;
     }
 
-    .table-row-hover-light-green:hover {
-        @apply bg-clinic-green-50;
+    .table-row-hover-light-primary:hover {
+        @apply bg-primary-50;
     }
 
     .premium-button {
-        @apply bg-clinic-green-500 hover:bg-clinic-green-600 text-white font-medium px-6 py-3 rounded-lg transition-all duration-200 ease-in-out shadow-sm hover:shadow-md;
+        @apply bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-primary-600 hover:to-secondary-600 text-white font-medium px-6 py-3 rounded-xl transition-all duration-200 ease-in-out shadow-lg hover:shadow-xl;
     }
 
     .premium-input {
-        @apply border-gray-200 focus:border-clinic-green-500 focus:ring-clinic-green-500/20 transition-all duration-200;
+        @apply border-border focus:border-primary-500 focus:ring-primary-500/20 transition-all duration-200;
     }
 
     .premium-tab {
@@ -40,10 +40,10 @@
     }
 
     .premium-tab[data-selected="true"] {
-        @apply bg-clinic-green-500 text-white;
+        @apply bg-gradient-to-r from-primary-500 to-secondary-500 text-white;
     }
 
     .premium-tab[data-selected="false"] {
-        @apply text-gray-600 hover:text-gray-800 hover:bg-gray-50;
+        @apply text-muted hover:text-foreground hover:bg-background;
     }
 }

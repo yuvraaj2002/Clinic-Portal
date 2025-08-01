@@ -61,8 +61,7 @@ const App: React.FC = () => {
   const { isAuthenticated, logout } = useAuth();
   const [activeTab, setActiveTab] = React.useState("patients");
   const [currentPage, setCurrentPage] = React.useState(1);
-  const [selectedPatient, setSelectedPatient] = React.useState<any>(null);
-  const [isModalOpen, setIsModalOpen] = React.useState(false);
+
   const [searchQuery, setSearchQuery] = React.useState("");
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
   const [sidebarType, setSidebarType] = React.useState<'patient' | 'medication'>('patient');
@@ -127,14 +126,11 @@ const App: React.FC = () => {
   const currentPatients = patients.slice(startIndex, startIndex + patientsPerPage);
 
   const handlePatientClick = (patient: any) => {
-    setSelectedPatient(patient);
-    setIsModalOpen(true);
+    // Navigate to patient detail page
+    window.location.href = `/patient/${patient.id}`;
   };
 
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setSelectedPatient(null);
-  };
+
 
   const filteredMedications = medications.filter(med =>
     med.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -146,26 +142,26 @@ const App: React.FC = () => {
       {/* Header Section */}
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h2 className="text-2xl font-bold text-[#434242] tracking-tight">Medications</h2>
-          <p className="text-[#434242]/70 text-sm mt-1">Manage and track medication inventory</p>
+          <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Medications</h2>
+          <p className="text-gray-600 text-sm mt-1">Manage and track medication inventory</p>
         </div>
         <div className="flex space-x-3">
           <Input
             placeholder="Search medications..."
-            startContent={<Icon icon="lucide:search" className="text-[#434242] w-4 h-4" />}
+            startContent={<Icon icon="lucide:search" className="text-[gray-700] w-4 h-4" />}
             className="w-64 premium-input"
             size="sm"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             classNames={{
-              input: "text-[#434242] placeholder-gray-400 outline-none focus:outline-none",
-              inputWrapper: "bg-white border border-[#5A8B7B] hover:border-[#5A8B7B] focus-within:border-[#5A8B7B] focus-within:ring-1 focus-within:ring-[#5A8B7B]/20 focus:outline-none focus:ring-0",
+              input: "text-[gray-700] placeholder-gray-400 outline-none focus:outline-none",
+              inputWrapper: "bg-white border border-[clinic-purple-600] hover:border-[clinic-purple-600] focus-within:border-[clinic-purple-600] focus-within:ring-1 focus-within:ring-[clinic-purple-600]/20 focus:outline-none focus:ring-0",
               innerWrapper: "outline-none focus:outline-none focus:ring-0",
               mainWrapper: "outline-none focus:outline-none focus:ring-0",
             }}
           />
           <Button
-            className="bg-[#5A8B7B] hover:bg-[#4A7A6B] text-white font-medium px-4 py-2 rounded-lg transition-all duration-200 ease-in-out shadow-sm hover:shadow-md flex items-center space-x-2"
+            className="bg-[clinic-purple-600] hover:bg-[clinic-purple-700] text-white font-medium px-4 py-2 rounded-lg transition-all duration-200 ease-in-out shadow-sm hover:shadow-md flex items-center space-x-2"
             size="sm"
             startContent={<Icon icon="lucide:plus" className="w-4 h-4" />}
             onClick={() => openSidebar('medication')}
@@ -184,11 +180,11 @@ const App: React.FC = () => {
           >
             <CardBody className="p-4">
               <div className="flex items-start justify-between mb-3">
-                <div className="w-10 h-10 bg-[#5A8B7B]/10 rounded-lg flex items-center justify-center">
-                  <Icon icon="lucide:pill" className="w-5 h-5 text-[#5A8B7B]" />
+                <div className="w-10 h-10 bg-[clinic-purple-600]/10 rounded-lg flex items-center justify-center">
+                  <Icon icon="lucide:pill" className="w-5 h-5 text-[clinic-purple-600]" />
                 </div>
                 <span className={`text-xs font-medium px-2 py-1 rounded-full ${medication.status === "In Stock"
-                  ? "bg-[#5A8B7B]/10 text-[#5A8B7B]"
+                  ? "bg-[clinic-purple-600]/10 text-[clinic-purple-600]"
                   : "bg-orange-100 text-orange-800"
                   }`}>
                   {medication.status}
@@ -197,17 +193,17 @@ const App: React.FC = () => {
 
               <div className="space-y-2">
                 <div>
-                  <h3 className="text-lg font-semibold text-[#434242]">{medication.name}</h3>
-                  <p className="text-[#5A8B7B] text-xs font-medium uppercase tracking-wider">
+                  <h3 className="text-lg font-semibold text-[gray-700]">{medication.name}</h3>
+                  <p className="text-[clinic-purple-600] text-xs font-medium uppercase tracking-wider">
                     {medication.dosage} {medication.frequency}
                   </p>
                 </div>
 
-                <p className="text-[#434242]/70 text-sm line-clamp-2">{medication.description}</p>
+                <p className="text-[gray-700]/70 text-sm line-clamp-2">{medication.description}</p>
 
                 <div className="pt-2">
-                  <p className="text-xs font-medium text-[#434242]/50 uppercase tracking-wider">Stock Level</p>
-                  <p className="text-[#434242] font-medium">{medication.stock} units</p>
+                  <p className="text-xs font-medium text-[gray-700]/50 uppercase tracking-wider">Stock Level</p>
+                  <p className="text-[gray-700] font-medium">{medication.stock} units</p>
                 </div>
               </div>
             </CardBody>
@@ -227,11 +223,16 @@ const App: React.FC = () => {
           {!isAuthenticated ? (
             <Auth onAuthSuccess={handleAuthSuccess} />
           ) : (
-            <div className="min-h-screen bg-[#F9F9F8] font-sans">
+            <div className="min-h-screen bg-gradient-to-br from-background to-white font-sans">
               {/* Premium Header & Navigation */}
               <Navbar maxWidth="full" className="bg-white border-b border-gray-100 shadow-sm">
                 <NavbarBrand className="px-6">
-                  <h1 className="font-bold text-[#434242] text-xl tracking-tight">Clinic Portal</h1>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center">
+                      <Icon icon="lucide:rocket" className="w-4 h-4 text-white" />
+                    </div>
+                    <h1 className="font-bold text-foreground text-xl tracking-tight">OHC Pharmacy</h1>
+                  </div>
                 </NavbarBrand>
                 <NavbarContent justify="center" className="px-6">
                   <Tabs
@@ -241,9 +242,9 @@ const App: React.FC = () => {
                     selectedKey={activeTab}
                     onSelectionChange={setActiveTab as any}
                     classNames={{
-                      tabList: "bg-[#F9F9F8] p-1 rounded-lg",
-                      tab: "text-[#434242] hover:text-[#5A8B7B]",
-                      cursor: "bg-[#5A8B7B]",
+                      tabList: "bg-white border border-border p-1 rounded-lg shadow-sm",
+                      tab: "text-muted hover:text-primary-600 hover:bg-primary-50 data-[selected=true]:text-white data-[selected=true]:bg-gradient-to-r data-[selected=true]:from-primary-500 data-[selected=true]:to-secondary-500 data-[selected=true]:shadow-md",
+                      cursor: "bg-gradient-to-r from-primary-500 to-secondary-500",
                     }}
                   >
                     <Tab
@@ -268,18 +269,12 @@ const App: React.FC = () => {
                 </NavbarContent>
                 <NavbarContent justify="end" className="px-6">
                   <Button
-                    variant="light"
-                    className="text-[#434242] hover:text-[#5A8B7B] mr-2"
+                    className="bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-primary-600 hover:to-secondary-600 text-white font-medium px-4 py-2 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
                     onClick={handleLogout}
                     startContent={<Icon icon="lucide:log-out" className="w-4 h-4" />}
                   >
-                    Logout
+                    Sign Out
                   </Button>
-                  <Avatar
-                    name="Y"
-                    size="sm"
-                    className="bg-[#5A8B7B] text-white cursor-pointer transition-all duration-200 hover:scale-110 hover:shadow-md"
-                  />
                 </NavbarContent>
               </Navbar>
 
@@ -298,19 +293,19 @@ const App: React.FC = () => {
                           {/* Compact Search Bar */}
                           <Input
                             placeholder="Search patients..."
-                            startContent={<Icon icon="lucide:search" className="text-[#434242] w-4 h-4" />}
+                            startContent={<Icon icon="lucide:search" className="text-foreground w-4 h-4" />}
                             className="w-64 premium-input"
                             size="sm"
                             classNames={{
-                              input: "text-[#434242] placeholder-gray-400 focus:outline-none",
-                              inputWrapper: "bg-white border border-[#5A8B7B] hover:border-[#5A8B7B] focus-within:border-[#5A8B7B] focus-within:ring-1 focus-within:ring-[#5A8B7B]/20 focus:outline-none focus:ring-0",
+                              input: "text-foreground placeholder-muted focus:outline-none",
+                              inputWrapper: "bg-white border border-primary-500 hover:border-primary-500 focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500/20 focus:outline-none focus:ring-0",
                               innerWrapper: "focus:outline-none focus:ring-0",
                               mainWrapper: "focus:outline-none focus:ring-0",
                             }}
                           />
                           {/* Add Patient Button */}
                           <Button
-                            className="bg-[#5A8B7B] hover:bg-[#4A7A6B] text-white font-medium px-4 py-2 rounded-lg transition-all duration-200 ease-in-out shadow-sm hover:shadow-md flex items-center space-x-2"
+                            className="bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-primary-600 hover:to-secondary-600 text-white font-medium px-4 py-2 rounded-lg transition-all duration-200 ease-in-out shadow-sm hover:shadow-md flex items-center space-x-2"
                             size="sm"
                             startContent={<Icon icon="lucide:plus" className="w-4 h-4" />}
                             onClick={() => openSidebar('patient')}
@@ -327,10 +322,10 @@ const App: React.FC = () => {
                           removeWrapper
                           classNames={{
                             wrapper: "bg-white",
-                            thead: "bg-[#F9F9F8]",
-                            th: "bg-[#F9F9F8] text-[#434242] font-semibold text-xs uppercase tracking-wider py-3 px-4 border-b border-gray-100",
-                            td: "py-3 px-4 border-b border-gray-50 text-[#434242] text-sm",
-                            tr: "hover:bg-[#5A8B7B]/10 transition-colors duration-200",
+                            thead: "bg-background",
+                            th: "bg-background text-foreground font-semibold text-xs uppercase tracking-wider py-3 px-4 border-b border-border",
+                            td: "py-3 px-4 border-b border-border text-foreground text-sm",
+                            tr: "hover:bg-primary-50 transition-colors duration-200",
                           }}
                         >
                           <TableHeader>
@@ -354,7 +349,7 @@ const App: React.FC = () => {
                                 <TableCell className="text-center">
                                   <Button
                                     size="sm"
-                                    className="bg-[#5A8B7B] hover:bg-[#5A8B7B]/80 text-white transition-all duration-200 ease-in-out shadow-sm hover:shadow-md px-3"
+                                    className="bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-primary-600 hover:to-secondary-600 text-white transition-all duration-200 ease-in-out shadow-sm hover:shadow-md px-3"
                                     onClick={() => handlePatientClick(patient)}
                                   >
                                     DETAILS
@@ -378,8 +373,8 @@ const App: React.FC = () => {
                             showControls
                             classNames={{
                               wrapper: "gap-0 overflow-visible h-8",
-                              item: "w-8 h-8 text-small rounded-none bg-transparent text-[#434242] hover:text-[#5A8B7B]",
-                              cursor: "bg-[#5A8B7B] text-white font-medium",
+                              item: "w-8 h-8 text-small rounded-none bg-transparent text-muted hover:text-primary-600",
+                              cursor: "bg-gradient-to-r from-primary-500 to-secondary-500 text-white font-medium",
                             }}
                           />
                         </div>
@@ -387,269 +382,13 @@ const App: React.FC = () => {
                     </main>
                   )}
                 </Route>
-                <Route path="/patient/:id">
-                  <PatientDetail patients={patients} />
-                </Route>
+
               </Switch>
 
-              {/* Patient Details Modal */}
-              <Modal
-                isOpen={isModalOpen}
-                onClose={closeModal}
-                size="4xl"
-                scrollBehavior="inside"
-                classNames={{
-                  wrapper: "bg-[rgba(90,139,123,0.25)] p-6 flex items-center justify-center",
-                  base: "bg-white max-w-6xl rounded-2xl shadow-2xl border border-gray-200 my-4",
-                  header: "border-b border-gray-100 bg-[#F9F9F8] rounded-t-2xl",
-                  body: "p-0 max-h-[calc(90vh-200px)] overflow-y-auto",
-                  footer: "border-t border-gray-100 rounded-b-2xl",
-                }}
-              >
-                <ModalContent>
-                  {selectedPatient && (
-                    <>
-                      <ModalHeader className="flex items-center justify-center px-6 py-4">
-                        <div className="text-center">
-                          <h3 className="text-xl font-bold text-[#434242]">{selectedPatient.fullName}</h3>
-                        </div>
-                      </ModalHeader>
-                      <ModalBody>
-                        <div className="p-6 space-y-4">
-                          {/* Action Buttons */}
-                          <div className="flex justify-center space-x-3 border-b border-gray-100 pb-4">
-                            {[
-                              { icon: "lucide:credit-card", text: "Update Credit Card" },
-                              { icon: "lucide:edit", text: "Edit Patient" },
-                              { icon: "lucide:mail", text: "Send Email" },
-                              { icon: "lucide:phone", text: "Call Patient" },
-                            ].map((action, index) => (
-                              <Button
-                                key={index}
-                                className="bg-white hover:bg-[#F9F9F8] text-[#5A8B7B] border border-[#5A8B7B] hover:border-[#5A8B7B] font-medium px-3 py-2 rounded-lg transition-all duration-200 ease-in-out shadow-sm hover:shadow-md flex items-center space-x-2"
-                                size="sm"
-                                startContent={<Icon icon={action.icon} className="w-4 h-4" />}
-                              >
-                                <span className="text-sm">{action.text}</span>
-                              </Button>
-                            ))}
-                          </div>
-
-                          {/* Two-Column Layout */}
-                          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                            {/* Left Column - Primary Information (2/3 width) */}
-                            <div className="lg:col-span-2 space-y-4">
-                              {/* Patient Information */}
-                              <Card className="bg-white border border-gray-100 shadow-sm hover:shadow-md transition-shadow rounded-xl">
-                                <CardHeader className="pb-3">
-                                  <h4 className="text-base font-semibold text-[#5A8B7B] flex items-center">
-                                    <Icon icon="lucide:user" className="w-4 h-4 mr-2 text-[#5A8B7B]" />
-                                    Patient Information
-                                  </h4>
-                                </CardHeader>
-                                <CardBody className="pt-0">
-                                  <div className="space-y-3">
-                                    <div className="flex justify-between items-center py-1">
-                                      <span className="text-xs text-[#434242]/60 uppercase tracking-wider">Full Name</span>
-                                      <span className="text-sm font-medium text-[#434242]">{selectedPatient.fullName}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center py-1">
-                                      <span className="text-xs text-[#434242]/60 uppercase tracking-wider">Date of Birth</span>
-                                      <span className="text-sm font-medium text-[#434242]">{new Date(selectedPatient.dateOfBirth).toLocaleDateString('en-US', {
-                                        year: 'numeric',
-                                        month: 'long',
-                                        day: 'numeric'
-                                      })}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center py-1">
-                                      <span className="text-xs text-[#434242]/60 uppercase tracking-wider">Email Address</span>
-                                      <span className="text-sm font-medium text-[#5A8B7B] break-all">{selectedPatient.email}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center py-1">
-                                      <span className="text-xs text-[#434242]/60 uppercase tracking-wider">Phone Number</span>
-                                      <span className="text-sm font-medium text-[#434242]">{selectedPatient.phoneNumber}</span>
-                                    </div>
-                                  </div>
-                                </CardBody>
-                              </Card>
-
-                              {/* Current Medications Section */}
-                              <Card className="bg-white border border-gray-100 shadow-sm hover:shadow-md transition-shadow rounded-xl">
-                                <CardHeader className="pb-3">
-                                  <div className="flex justify-between items-center w-full">
-                                    <h4 className="text-base font-semibold text-[#5A8B7B] flex items-center">
-                                      <Icon icon="lucide:pill" className="w-4 h-4 mr-2 text-[#5A8B7B]" />
-                                      Current Medications
-                                    </h4>
-                                    <div className="flex space-x-2 ml-4">
-                                      <Input
-                                        placeholder="Search medications..."
-                                        startContent={<Icon icon="lucide:search" className="text-gray-400 w-3 h-3" />}
-                                        className="w-40"
-                                        size="sm"
-                                        classNames={{
-                                          input: "text-gray-700 placeholder-gray-400 outline-none",
-                                          inputWrapper: "bg-white border border-[#5A8B7B] hover:border-[#5A8B7B] focus-within:border-[#5A8B7B] focus-within:ring-1 focus-within:ring-[#5A8B7B]/20 rounded-lg focus:outline-none",
-                                          innerWrapper: "outline-none",
-                                          mainWrapper: "outline-none",
-                                        }}
-                                      />
-                                      <Button
-                                        className="bg-[#5A8B7B] hover:bg-[#5A8B7B]/80 text-white border border-[#5A8B7B] hover:border-[#5A8B7B] font-medium px-2 py-1 rounded-lg transition-all duration-200"
-                                        size="sm"
-                                        startContent={<Icon icon="lucide:plus" className="w-3 h-3" />}
-                                      >
-                                        <span className="text-sm">Add</span>
-                                      </Button>
-                                    </div>
-                                  </div>
-                                </CardHeader>
-                                <CardBody className="pt-0">
-                                  <div className="space-y-2">
-                                    <div className="flex items-center space-x-3 p-2 bg-[#F9F9F8] rounded-lg border border-gray-100 hover:bg-gray-100 transition-colors">
-                                      <div className="w-8 h-8 bg-[#5A8B7B]/10 rounded-lg flex items-center justify-center">
-                                        <Icon icon="lucide:pill" className="w-4 h-4 text-[#5A8B7B]" />
-                                      </div>
-                                      <div className="flex-grow min-w-0">
-                                        <div className="flex justify-between items-start">
-                                          <div className="flex-grow min-w-0">
-                                            <p className="text-[#5A8B7B] font-medium text-xs uppercase tracking-wider">10 MG ORALLY ONCE A DAY</p>
-                                            <p className="text-sm font-semibold text-[#434242] truncate">Lisinopril</p>
-                                            <p className="text-xs text-[#434242]/70 truncate">This medication is used to treat high blood pressure and congestive heart failure.</p>
-                                          </div>
-                                          <Icon icon="lucide:chevron-right" className="text-gray-400 w-4 h-4 flex-shrink-0 ml-2" />
-                                        </div>
-                                      </div>
-                                    </div>
-
-                                    <div className="flex items-center space-x-3 p-2 bg-[#F9F9F8] rounded-lg border border-gray-100 hover:bg-gray-100 transition-colors">
-                                      <div className="w-8 h-8 bg-[#5A8B7B]/10 rounded-lg flex items-center justify-center">
-                                        <Icon icon="lucide:heart" className="w-4 h-4 text-[#5A8B7B]" />
-                                      </div>
-                                      <div className="flex-grow min-w-0">
-                                        <div className="flex justify-between items-start">
-                                          <div className="flex-grow min-w-0">
-                                            <p className="text-[#5A8B7B] font-medium text-xs uppercase tracking-wider">5 MG ORALLY ONCE A DAY</p>
-                                            <p className="text-sm font-semibold text-[#434242] truncate">Amlodipine</p>
-                                            <p className="text-xs text-[#434242]/70 truncate">Calcium channel blocker used to treat high blood pressure and chest pain.</p>
-                                          </div>
-                                          <Icon icon="lucide:chevron-right" className="text-gray-400 w-4 h-4 flex-shrink-0 ml-2" />
-                                        </div>
-                                      </div>
-                                    </div>
-
-                                    <div className="flex items-center space-x-3 p-2 bg-[#F9F9F8] rounded-lg border border-gray-100 hover:bg-gray-100 transition-colors">
-                                      <div className="w-8 h-8 bg-[#5A8B7B]/10 rounded-lg flex items-center justify-center">
-                                        <Icon icon="lucide:shield" className="w-4 h-4 text-[#5A8B7B]" />
-                                      </div>
-                                      <div className="flex-grow min-w-0">
-                                        <div className="flex justify-between items-start">
-                                          <div className="flex-grow min-w-0">
-                                            <p className="text-[#5A8B7B] font-medium text-xs uppercase tracking-wider">20 MG ORALLY ONCE A DAY</p>
-                                            <p className="text-sm font-semibold text-[#434242] truncate">Atorvastatin</p>
-                                            <p className="text-xs text-[#434242]/70 truncate">Statin medication used to prevent cardiovascular disease and lower cholesterol.</p>
-                                          </div>
-                                          <Icon icon="lucide:chevron-right" className="text-gray-400 w-4 h-4 flex-shrink-0 ml-2" />
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </CardBody>
-                              </Card>
-                            </div>
-
-                            {/* Right Column - Secondary/Summary Information (1/3 width) */}
-                            <div className="lg:col-span-1 space-y-4">
-                              {/* Health Summary - Top Priority in Right Column */}
-                              <Card className="bg-white border border-gray-100 shadow-sm hover:shadow-md transition-shadow rounded-xl">
-                                <CardHeader className="pb-3">
-                                  <h4 className="text-base font-semibold text-[#5A8B7B] flex items-center">
-                                    <Icon icon="lucide:activity" className="w-4 h-4 mr-2 text-[#5A8B7B]" />
-                                    Health Summary
-                                  </h4>
-                                </CardHeader>
-                                <CardBody className="pt-0">
-                                  <div className="space-y-3">
-                                    <div className="flex justify-between items-center py-1">
-                                      <span className="text-xs text-[#434242]/60 uppercase tracking-wider">Last Visit</span>
-                                      <span className="text-sm font-medium text-[#434242]">March 15, 2024</span>
-                                    </div>
-                                    <div className="flex justify-between items-center py-1">
-                                      <span className="text-xs text-[#434242]/60 uppercase tracking-wider">Blood Pressure</span>
-                                      <span className="text-sm font-medium text-[#434242]">120/80 mmHg</span>
-                                    </div>
-                                    <div className="flex justify-between items-center py-1">
-                                      <span className="text-xs text-[#434242]/60 uppercase tracking-wider">Weight</span>
-                                      <span className="text-sm font-medium text-[#434242]">68 kg</span>
-                                    </div>
-                                    <div className="flex justify-between items-center py-1">
-                                      <span className="text-xs text-[#434242]/60 uppercase tracking-wider">BMI</span>
-                                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-[#5A8B7B]/10 text-[#5A8B7B]">
-                                        Normal (22.4)
-                                      </span>
-                                    </div>
-                                    <div className="flex justify-between items-center py-1">
-                                      <span className="text-xs text-[#434242]/60 uppercase tracking-wider">Heart Rate</span>
-                                      <span className="text-sm font-medium text-[#434242]">72 bpm</span>
-                                    </div>
-                                    <div className="flex justify-between items-center py-1">
-                                      <span className="text-xs text-[#434242]/60 uppercase tracking-wider">Temperature</span>
-                                      <span className="text-sm font-medium text-[#434242]">98.6°F</span>
-                                    </div>
-                                  </div>
-                                </CardBody>
-                              </Card>
-
-                              {/* Payment Details - Secondary Information */}
-                              <Card className="bg-white border border-gray-100 shadow-sm hover:shadow-md transition-shadow rounded-xl">
-                                <CardHeader className="pb-3">
-                                  <h4 className="text-base font-semibold text-[#5A8B7B] flex items-center">
-                                    <Icon icon="lucide:credit-card" className="w-4 h-4 mr-2 text-[#5A8B7B]" />
-                                    Payment Details
-                                  </h4>
-                                </CardHeader>
-                                <CardBody className="pt-0">
-                                  <div className="space-y-3">
-                                    <div className="flex justify-between items-center py-1">
-                                      <span className="text-xs text-[#434242]/60 uppercase tracking-wider">Order Status</span>
-                                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-[#5A8B7B]/10 text-[#5A8B7B]">
-                                        Processed
-                                      </span>
-                                    </div>
-                                    <div className="flex justify-between items-center py-1">
-                                      <span className="text-xs text-[#434242]/60 uppercase tracking-wider">Amount Paid</span>
-                                      <span className="text-sm font-bold text-[#434242]">$150.00</span>
-                                    </div>
-                                    <div className="flex justify-between items-center py-1">
-                                      <span className="text-xs text-[#434242]/60 uppercase tracking-wider">Shipping Cost</span>
-                                      <span className="text-sm font-medium text-[#434242]">$20.99</span>
-                                    </div>
-                                    <div className="flex justify-between items-center py-1">
-                                      <span className="text-xs text-[#434242]/60 uppercase tracking-wider">Total Amount</span>
-                                      <span className="text-sm font-semibold text-[#434242]">$170.99</span>
-                                    </div>
-                                  </div>
-                                </CardBody>
-                              </Card>
-                            </div>
-                          </div>
-                        </div>
-                      </ModalBody>
-                      <ModalFooter className="px-6 py-4">
-                        <div className="w-full flex justify-end">
-                          <Button
-                            className="bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200 hover:border-gray-300 font-medium px-4 py-2 rounded-lg transition-all duration-200"
-                            size="sm"
-                            onClick={closeModal}
-                          >
-                            <span className="text-sm">Close</span>
-                          </Button>
-                        </div>
-                      </ModalFooter>
-                    </>
-                  )}
-                </ModalContent>
-              </Modal>
+              {/* Patient Details Route */}
+              <Route path="/patient/:id">
+                <PatientDetail patients={patients} />
+              </Route>
 
               {/* Sidebar Modal */}
               {isSidebarOpen && (
@@ -658,14 +397,14 @@ const App: React.FC = () => {
                     <div className="p-6 h-full flex flex-col">
                       {/* Header */}
                       <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-xl font-bold text-[#434242]">
+                        <h2 className="text-xl font-bold text-[gray-700]">
                           {sidebarType === 'patient' ? 'Add New Patient' : 'Add New Medication'}
                         </h2>
                         <Button
                           isIconOnly
                           variant="light"
                           onClick={closeSidebar}
-                          className="text-[#434242] hover:text-[#5A8B7B]"
+                          className="text-[gray-700] hover:text-[clinic-purple-600]"
                         >
                           <Icon icon="lucide:x" className="w-5 h-5" />
                         </Button>
@@ -684,13 +423,13 @@ const App: React.FC = () => {
                                   onChange={(e) => handleInputChange('firstName', e.target.value)}
                                   required
                                   classNames={{
-                                    label: "text-[#434242] font-medium",
-                                    input: "text-[#434242] placeholder-gray-400 focus:outline-none",
-                                    inputWrapper: "bg-white border border-gray-200 hover:border-[#5A8B7B] focus-within:border-[#5A8B7B] focus-within:ring-1 focus-within:ring-[#5A8B7B]/20 focus:outline-none focus:ring-0",
+                                    label: "text-[gray-700] font-medium",
+                                    input: "text-[gray-700] placeholder-gray-400 focus:outline-none",
+                                    inputWrapper: "bg-white border border-gray-200 hover:border-[clinic-purple-600] focus-within:border-[clinic-purple-600] focus-within:ring-1 focus-within:ring-[clinic-purple-600]/20 focus:outline-none focus:ring-0",
                                     innerWrapper: "focus:outline-none focus:ring-0",
                                     mainWrapper: "focus:outline-none focus:ring-0",
                                   }}
-                                  startContent={<Icon icon="lucide:user" className="text-[#5A8B7B] w-4 h-4" />}
+                                  startContent={<Icon icon="lucide:user" className="text-[clinic-purple-600] w-4 h-4" />}
                                 />
                                 <Input
                                   label="Last Name"
@@ -699,13 +438,13 @@ const App: React.FC = () => {
                                   onChange={(e) => handleInputChange('lastName', e.target.value)}
                                   required
                                   classNames={{
-                                    label: "text-[#434242] font-medium",
-                                    input: "text-[#434242] placeholder-gray-400 focus:outline-none",
-                                    inputWrapper: "bg-white border border-gray-200 hover:border-[#5A8B7B] focus-within:border-[#5A8B7B] focus-within:ring-1 focus-within:ring-[#5A8B7B]/20 focus:outline-none focus:ring-0",
+                                    label: "text-[gray-700] font-medium",
+                                    input: "text-[gray-700] placeholder-gray-400 focus:outline-none",
+                                    inputWrapper: "bg-white border border-gray-200 hover:border-[clinic-purple-600] focus-within:border-[clinic-purple-600] focus-within:ring-1 focus-within:ring-[clinic-purple-600]/20 focus:outline-none focus:ring-0",
                                     innerWrapper: "focus:outline-none focus:ring-0",
                                     mainWrapper: "focus:outline-none focus:ring-0",
                                   }}
-                                  startContent={<Icon icon="lucide:user" className="text-[#5A8B7B] w-4 h-4" />}
+                                  startContent={<Icon icon="lucide:user" className="text-[clinic-purple-600] w-4 h-4" />}
                                 />
                               </div>
                               <Input
@@ -716,13 +455,13 @@ const App: React.FC = () => {
                                 onChange={(e) => handleInputChange('email', e.target.value)}
                                 required
                                 classNames={{
-                                  label: "text-[#434242] font-medium",
-                                  input: "text-[#434242] placeholder-gray-400 focus:outline-none",
-                                  inputWrapper: "bg-white border border-gray-200 hover:border-[#5A8B7B] focus-within:border-[#5A8B7B] focus-within:ring-1 focus-within:ring-[#5A8B7B]/20 focus:outline-none focus:ring-0",
+                                  label: "text-[gray-700] font-medium",
+                                  input: "text-[gray-700] placeholder-gray-400 focus:outline-none",
+                                  inputWrapper: "bg-white border border-gray-200 hover:border-[clinic-purple-600] focus-within:border-[clinic-purple-600] focus-within:ring-1 focus-within:ring-[clinic-purple-600]/20 focus:outline-none focus:ring-0",
                                   innerWrapper: "focus:outline-none focus:ring-0",
                                   mainWrapper: "focus:outline-none focus:ring-0",
                                 }}
-                                startContent={<Icon icon="lucide:mail" className="text-[#5A8B7B] w-4 h-4" />}
+                                startContent={<Icon icon="lucide:mail" className="text-[clinic-purple-600] w-4 h-4" />}
                               />
                               <Input
                                 label="Phone Number"
@@ -731,13 +470,13 @@ const App: React.FC = () => {
                                 onChange={(e) => handleInputChange('phone', e.target.value)}
                                 required
                                 classNames={{
-                                  label: "text-[#434242] font-medium",
-                                  input: "text-[#434242] placeholder-gray-400 focus:outline-none",
-                                  inputWrapper: "bg-white border border-gray-200 hover:border-[#5A8B7B] focus-within:border-[#5A8B7B] focus-within:ring-1 focus-within:ring-[#5A8B7B]/20 focus:outline-none focus:ring-0",
+                                  label: "text-[gray-700] font-medium",
+                                  input: "text-[gray-700] placeholder-gray-400 focus:outline-none",
+                                  inputWrapper: "bg-white border border-gray-200 hover:border-[clinic-purple-600] focus-within:border-[clinic-purple-600] focus-within:ring-1 focus-within:ring-[clinic-purple-600]/20 focus:outline-none focus:ring-0",
                                   innerWrapper: "focus:outline-none focus:ring-0",
                                   mainWrapper: "focus:outline-none focus:ring-0",
                                 }}
-                                startContent={<Icon icon="lucide:phone" className="text-[#5A8B7B] w-4 h-4" />}
+                                startContent={<Icon icon="lucide:phone" className="text-[clinic-purple-600] w-4 h-4" />}
                               />
                               <Input
                                 label="Date of Birth"
@@ -746,13 +485,13 @@ const App: React.FC = () => {
                                 onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
                                 required
                                 classNames={{
-                                  label: "text-[#434242] font-medium",
-                                  input: "text-[#434242] placeholder-gray-400 focus:outline-none",
-                                  inputWrapper: "bg-white border border-gray-200 hover:border-[#5A8B7B] focus-within:border-[#5A8B7B] focus-within:ring-1 focus-within:ring-[#5A8B7B]/20 focus:outline-none focus:ring-0",
+                                  label: "text-[gray-700] font-medium",
+                                  input: "text-[gray-700] placeholder-gray-400 focus:outline-none",
+                                  inputWrapper: "bg-white border border-gray-200 hover:border-[clinic-purple-600] focus-within:border-[clinic-purple-600] focus-within:ring-1 focus-within:ring-[clinic-purple-600]/20 focus:outline-none focus:ring-0",
                                   innerWrapper: "focus:outline-none focus:ring-0",
                                   mainWrapper: "focus:outline-none focus:ring-0",
                                 }}
-                                startContent={<Icon icon="lucide:calendar" className="text-[#5A8B7B] w-4 h-4" />}
+                                startContent={<Icon icon="lucide:calendar" className="text-[clinic-purple-600] w-4 h-4" />}
                               />
                             </>
                           ) : (
@@ -764,13 +503,13 @@ const App: React.FC = () => {
                                 onChange={(e) => handleInputChange('medicationName', e.target.value)}
                                 required
                                 classNames={{
-                                  label: "text-[#434242] font-medium",
-                                  input: "text-[#434242] placeholder-gray-400 focus:outline-none",
-                                  inputWrapper: "bg-white border border-gray-200 hover:border-[#5A8B7B] focus-within:border-[#5A8B7B] focus-within:ring-1 focus-within:ring-[#5A8B7B]/20 focus:outline-none focus:ring-0",
+                                  label: "text-[gray-700] font-medium",
+                                  input: "text-[gray-700] placeholder-gray-400 focus:outline-none",
+                                  inputWrapper: "bg-white border border-gray-200 hover:border-[clinic-purple-600] focus-within:border-[clinic-purple-600] focus-within:ring-1 focus-within:ring-[clinic-purple-600]/20 focus:outline-none focus:ring-0",
                                   innerWrapper: "focus:outline-none focus:ring-0",
                                   mainWrapper: "focus:outline-none focus:ring-0",
                                 }}
-                                startContent={<Icon icon="lucide:pill" className="text-[#5A8B7B] w-4 h-4" />}
+                                startContent={<Icon icon="lucide:pill" className="text-[clinic-purple-600] w-4 h-4" />}
                               />
                               <div className="grid grid-cols-2 gap-4">
                                 <Input
@@ -780,13 +519,13 @@ const App: React.FC = () => {
                                   onChange={(e) => handleInputChange('dosage', e.target.value)}
                                   required
                                   classNames={{
-                                    label: "text-[#434242] font-medium",
-                                    input: "text-[#434242] placeholder-gray-400 focus:outline-none",
-                                    inputWrapper: "bg-white border border-gray-200 hover:border-[#5A8B7B] focus-within:border-[#5A8B7B] focus-within:ring-1 focus-within:ring-[#5A8B7B]/20 focus:outline-none focus:ring-0",
+                                    label: "text-[gray-700] font-medium",
+                                    input: "text-[gray-700] placeholder-gray-400 focus:outline-none",
+                                    inputWrapper: "bg-white border border-gray-200 hover:border-[clinic-purple-600] focus-within:border-[clinic-purple-600] focus-within:ring-1 focus-within:ring-[clinic-purple-600]/20 focus:outline-none focus:ring-0",
                                     innerWrapper: "focus:outline-none focus:ring-0",
                                     mainWrapper: "focus:outline-none focus:ring-0",
                                   }}
-                                  startContent={<Icon icon="lucide:activity" className="text-[#5A8B7B] w-4 h-4" />}
+                                  startContent={<Icon icon="lucide:activity" className="text-[clinic-purple-600] w-4 h-4" />}
                                 />
                                 <Input
                                   label="Frequency"
@@ -795,13 +534,13 @@ const App: React.FC = () => {
                                   onChange={(e) => handleInputChange('frequency', e.target.value)}
                                   required
                                   classNames={{
-                                    label: "text-[#434242] font-medium",
-                                    input: "text-[#434242] placeholder-gray-400 focus:outline-none",
-                                    inputWrapper: "bg-white border border-gray-200 hover:border-[#5A8B7B] focus-within:border-[#5A8B7B] focus-within:ring-1 focus-within:ring-[#5A8B7B]/20 focus:outline-none focus:ring-0",
+                                    label: "text-[gray-700] font-medium",
+                                    input: "text-[gray-700] placeholder-gray-400 focus:outline-none",
+                                    inputWrapper: "bg-white border border-gray-200 hover:border-[clinic-purple-600] focus-within:border-[clinic-purple-600] focus-within:ring-1 focus-within:ring-[clinic-purple-600]/20 focus:outline-none focus:ring-0",
                                     innerWrapper: "focus:outline-none focus:ring-0",
                                     mainWrapper: "focus:outline-none focus:ring-0",
                                   }}
-                                  startContent={<Icon icon="lucide:clock" className="text-[#5A8B7B] w-4 h-4" />}
+                                  startContent={<Icon icon="lucide:clock" className="text-[clinic-purple-600] w-4 h-4" />}
                                 />
                               </div>
                               <Input
@@ -812,13 +551,13 @@ const App: React.FC = () => {
                                 onChange={(e) => handleInputChange('stock', e.target.value)}
                                 required
                                 classNames={{
-                                  label: "text-[#434242] font-medium",
-                                  input: "text-[#434242] placeholder-gray-400 focus:outline-none",
-                                  inputWrapper: "bg-white border border-gray-200 hover:border-[#5A8B7B] focus-within:border-[#5A8B7B] focus-within:ring-1 focus-within:ring-[#5A8B7B]/20 focus:outline-none focus:ring-0",
+                                  label: "text-[gray-700] font-medium",
+                                  input: "text-[gray-700] placeholder-gray-400 focus:outline-none",
+                                  inputWrapper: "bg-white border border-gray-200 hover:border-[clinic-purple-600] focus-within:border-[clinic-purple-600] focus-within:ring-1 focus-within:ring-[clinic-purple-600]/20 focus:outline-none focus:ring-0",
                                   innerWrapper: "focus:outline-none focus:ring-0",
                                   mainWrapper: "focus:outline-none focus:ring-0",
                                 }}
-                                startContent={<Icon icon="lucide:package" className="text-[#5A8B7B] w-4 h-4" />}
+                                startContent={<Icon icon="lucide:package" className="text-[clinic-purple-600] w-4 h-4" />}
                               />
                               <Input
                                 label="Description"
@@ -826,13 +565,13 @@ const App: React.FC = () => {
                                 value={formData.description}
                                 onChange={(e) => handleInputChange('description', e.target.value)}
                                 classNames={{
-                                  label: "text-[#434242] font-medium",
-                                  input: "text-[#434242] placeholder-gray-400 focus:outline-none",
-                                  inputWrapper: "bg-white border border-gray-200 hover:border-[#5A8B7B] focus-within:border-[#5A8B7B] focus-within:ring-1 focus-within:ring-[#5A8B7B]/20 focus:outline-none focus:ring-0",
+                                  label: "text-[gray-700] font-medium",
+                                  input: "text-[gray-700] placeholder-gray-400 focus:outline-none",
+                                  inputWrapper: "bg-white border border-gray-200 hover:border-[clinic-purple-600] focus-within:border-[clinic-purple-600] focus-within:ring-1 focus-within:ring-[clinic-purple-600]/20 focus:outline-none focus:ring-0",
                                   innerWrapper: "focus:outline-none focus:ring-0",
                                   mainWrapper: "focus:outline-none focus:ring-0",
                                 }}
-                                startContent={<Icon icon="lucide:file-text" className="text-[#5A8B7B] w-4 h-4" />}
+                                startContent={<Icon icon="lucide:file-text" className="text-[clinic-purple-600] w-4 h-4" />}
                               />
                             </>
                           )}
@@ -843,14 +582,14 @@ const App: React.FC = () => {
                           <div className="flex space-x-3">
                             <Button
                               variant="bordered"
-                              className="flex-1 border-[#5A8B7B] text-[#5A8B7B] hover:bg-[#5A8B7B]/10"
+                              className="flex-1 border-[clinic-purple-600] text-[clinic-purple-600] hover:bg-[clinic-purple-600]/10"
                               onClick={closeSidebar}
                             >
                               Cancel
                             </Button>
                             <Button
                               type="submit"
-                              className="flex-1 bg-[#5A8B7B] hover:bg-[#4A7A6B] text-white"
+                              className="flex-1 bg-[clinic-purple-600] hover:bg-[clinic-purple-700] text-white"
                             >
                               {sidebarType === 'patient' ? 'Add Patient' : 'Add Medication'}
                             </Button>
@@ -863,7 +602,7 @@ const App: React.FC = () => {
               )}
 
               {/* Premium Footer */}
-              <footer className="bg-[#5A8B7B] text-white mt-16">
+              <footer className="bg-[clinic-purple-600] text-white mt-16">
                 <div className="container mx-auto px-6 py-8 max-w-7xl">
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
                     <div className="col-span-1 md:col-span-2">
@@ -911,7 +650,7 @@ const App: React.FC = () => {
           )}
         </Route>
       </Switch>
-    </Router>
+    </Router >
   );
 };
 
