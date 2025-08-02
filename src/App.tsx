@@ -1,5 +1,5 @@
 import React from 'react';
-import { Navbar, NavbarBrand, NavbarContent, Avatar, Tabs, Tab, Input, Button, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Pagination, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Card, CardBody, CardHeader } from "@heroui/react";
+import { Navbar, NavbarBrand, NavbarContent, Tabs, Tab, Input, Button, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Pagination, Card, CardBody } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import { BrowserRouter as Router, Route, Switch } from 'react-router-dom';
 import Auth from './components/Auth';
@@ -22,7 +22,6 @@ const App: React.FC = () => {
   const [patients, setPatients] = React.useState<Patient[]>([]);
   const [patientsLoading, setPatientsLoading] = React.useState(true);
   const [patientsError, setPatientsError] = React.useState<string | null>(null);
-  const [patientsResponse, setPatientsResponse] = React.useState<PatientsResponse | null>(null);
 
 
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
@@ -47,7 +46,6 @@ const App: React.FC = () => {
       setPatientsLoading(true);
       setPatientsError(null);
       const response = await getPatients();
-      setPatientsResponse(response);
       setPatients(response.patients);
     } catch (error) {
       console.error('Failed to fetch patients:', error);
