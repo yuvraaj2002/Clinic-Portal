@@ -84,4 +84,45 @@ export const getAuthToken = (): string | null => {
 
 export const getTokenType = (): string | null => {
     return sessionStorage.getItem('token_type');
+};
+
+// Interface for the API response
+export interface PatientContact {
+    id: string;
+    name: string;
+    company_name: string | null;
+    phone: string;
+    email: string | null;
+    tags: string[];
+}
+
+export interface Patient {
+    opportunity_id: string;
+    name: string;
+    monetary_value: number;
+    status: string;
+    source: string | null;
+    created_at: string;
+    last_status_change: string;
+    contact: PatientContact;
+}
+
+export interface PatientsResponse {
+    success: boolean;
+    provider_name: string;
+    pipeline_id: string;
+    total_patients: number;
+    patients: Patient[];
+}
+
+// Function to fetch patients from the API
+export const getPatients = async (providerName: string = "BridgeCreek Patient"): Promise<PatientsResponse> => {
+    const response = await apiCall(`/ghl/provider-patients?provider_name=${encodeURIComponent(providerName)}`);
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to fetch patients');
+    }
+
+    return response.json();
 }; 

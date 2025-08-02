@@ -2,10 +2,10 @@ import React from 'react';
 import { Navbar, NavbarBrand, NavbarContent, Avatar, Tabs, Tab, Input, Button, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Pagination, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Card, CardBody, CardHeader } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import { BrowserRouter as Router, Route, Switch } from 'react-router-dom';
-import PatientDetail from './components/PatientDetail';
 import Auth from './components/Auth';
 import SetPassword from './components/SetPassword';
 import { useAuth } from './contexts/AuthContext';
+import { getPatients, Patient, PatientsResponse } from './utils/api';
 
 // Sample medications data
 const medications = [
@@ -29,38 +29,18 @@ const medications = [
   }))
 );
 
-const patients = [
-  { id: 1, fullName: "Emily Patel", dateOfBirth: "1990-01-20T00:00:00.000Z", email: "emily.patel@example.com", phoneNumber: "123-456-7890" },
-  { id: 2, fullName: "Tyler Jackson", dateOfBirth: "1998-11-24T00:00:00.000Z", email: "tyler.jackson@example.com", phoneNumber: "987-654-3210" },
-  { id: 3, fullName: "Sofia Rodriguez", dateOfBirth: "1995-03-19T00:00:00.000Z", email: "sofia.rodriguez@example.com", phoneNumber: "567-890-1234" },
-  { id: 4, fullName: "Michael Davis", dateOfBirth: "1992-07-27T00:00:00.000Z", email: "michael.davis@example.com", phoneNumber: "345-678-9012" },
-  { id: 5, fullName: "Jessica Martin", dateOfBirth: "1999-02-15T00:00:00.000Z", email: "jessica.martin@example.com", phoneNumber: "901-234-5678" },
-  { id: 6, fullName: "Daniel Lee", dateOfBirth: "1997-12-17T00:00:00.000Z", email: "daniel.lee@example.com", phoneNumber: "111-222-3333" },
-  { id: 7, fullName: "Sarah Wilson", dateOfBirth: "1988-05-10T00:00:00.000Z", email: "sarah.wilson@example.com", phoneNumber: "444-555-6666" },
-  { id: 8, fullName: "James Brown", dateOfBirth: "1985-09-03T00:00:00.000Z", email: "james.brown@example.com", phoneNumber: "777-888-9999" },
-  { id: 9, fullName: "Lisa Chen", dateOfBirth: "1993-12-25T00:00:00.000Z", email: "lisa.chen@example.com", phoneNumber: "222-333-4444" },
-  { id: 10, fullName: "Robert Taylor", dateOfBirth: "1987-08-14T00:00:00.000Z", email: "robert.taylor@example.com", phoneNumber: "555-666-7777" },
-  { id: 11, fullName: "Amanda Garcia", dateOfBirth: "1994-04-08T00:00:00.000Z", email: "amanda.garcia@example.com", phoneNumber: "888-999-0000" },
-  { id: 12, fullName: "Kevin Martinez", dateOfBirth: "1991-01-30T00:00:00.000Z", email: "kevin.martinez@example.com", phoneNumber: "333-444-5555" },
-  { id: 13, fullName: "Rachel Johnson", dateOfBirth: "1996-06-18T00:00:00.000Z", email: "rachel.johnson@example.com", phoneNumber: "666-777-8888" },
-  { id: 14, fullName: "David Anderson", dateOfBirth: "1989-11-12T00:00:00.000Z", email: "david.anderson@example.com", phoneNumber: "999-000-1111" },
-  { id: 15, fullName: "Maria Lopez", dateOfBirth: "1992-03-22T00:00:00.000Z", email: "maria.lopez@example.com", phoneNumber: "111-333-5555" },
-  { id: 16, fullName: "Jennifer White", dateOfBirth: "1986-07-05T00:00:00.000Z", email: "jennifer.white@example.com", phoneNumber: "222-444-6666" },
-  { id: 17, fullName: "Christopher Lee", dateOfBirth: "1990-10-12T00:00:00.000Z", email: "christopher.lee@example.com", phoneNumber: "333-555-7777" },
-  { id: 18, fullName: "Nicole Thompson", dateOfBirth: "1988-12-03T00:00:00.000Z", email: "nicole.thompson@example.com", phoneNumber: "444-666-8888" },
-  { id: 19, fullName: "Matthew Clark", dateOfBirth: "1993-02-28T00:00:00.000Z", email: "matthew.clark@example.com", phoneNumber: "555-777-9999" },
-  { id: 20, fullName: "Ashley Hall", dateOfBirth: "1995-08-15T00:00:00.000Z", email: "ashley.hall@example.com", phoneNumber: "666-888-0000" },
-  { id: 21, fullName: "Ryan Miller", dateOfBirth: "1987-04-20T00:00:00.000Z", email: "ryan.miller@example.com", phoneNumber: "777-999-1111" },
-  { id: 22, fullName: "Stephanie Davis", dateOfBirth: "1991-06-14T00:00:00.000Z", email: "stephanie.davis@example.com", phoneNumber: "888-000-2222" },
-  { id: 23, fullName: "Brandon Wilson", dateOfBirth: "1989-09-08T00:00:00.000Z", email: "brandon.wilson@example.com", phoneNumber: "999-111-3333" },
-  { id: 24, fullName: "Melissa Moore", dateOfBirth: "1994-01-25T00:00:00.000Z", email: "melissa.moore@example.com", phoneNumber: "000-222-4444" },
-  { id: 25, fullName: "Justin Taylor", dateOfBirth: "1992-11-30T00:00:00.000Z", email: "justin.taylor@example.com", phoneNumber: "111-333-5555" },
-];
+// Patients will be loaded from API
 
 const App: React.FC = () => {
   const { isAuthenticated, logout } = useAuth();
   const [activeTab, setActiveTab] = React.useState("patients");
   const [currentPage, setCurrentPage] = React.useState(1);
+
+  // State for API data
+  const [patients, setPatients] = React.useState<Patient[]>([]);
+  const [patientsLoading, setPatientsLoading] = React.useState(true);
+  const [patientsError, setPatientsError] = React.useState<string | null>(null);
+  const [patientsResponse, setPatientsResponse] = React.useState<PatientsResponse | null>(null);
 
   const [searchQuery, setSearchQuery] = React.useState("");
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
@@ -78,6 +58,29 @@ const App: React.FC = () => {
     stock: '',
   });
   const patientsPerPage = 20;
+
+  // Function to fetch patients from API
+  const fetchPatients = async () => {
+    try {
+      setPatientsLoading(true);
+      setPatientsError(null);
+      const response = await getPatients();
+      setPatientsResponse(response);
+      setPatients(response.patients);
+    } catch (error) {
+      console.error('Failed to fetch patients:', error);
+      setPatientsError(error instanceof Error ? error.message : 'Failed to fetch patients');
+    } finally {
+      setPatientsLoading(false);
+    }
+  };
+
+  // Load patients when component mounts
+  React.useEffect(() => {
+    if (isAuthenticated) {
+      fetchPatients();
+    }
+  }, [isAuthenticated]);
 
   const handleAuthSuccess = () => {
     // Authentication is now handled by the context
@@ -125,10 +128,7 @@ const App: React.FC = () => {
   const startIndex = (currentPage - 1) * patientsPerPage;
   const currentPatients = patients.slice(startIndex, startIndex + patientsPerPage);
 
-  const handlePatientClick = (patient: any) => {
-    // Navigate to patient detail page
-    window.location.href = `/patient/${patient.id}`;
-  };
+
 
 
 
@@ -219,6 +219,7 @@ const App: React.FC = () => {
         <Route path="/set-password">
           <SetPassword onAuthSuccess={handleAuthSuccess} />
         </Route>
+
         <Route path="/">
           {!isAuthenticated ? (
             <Auth onAuthSuccess={handleAuthSuccess} />
@@ -330,33 +331,68 @@ const App: React.FC = () => {
                         >
                           <TableHeader>
                             <TableColumn className="font-semibold">FULL NAME</TableColumn>
-                            <TableColumn className="font-semibold">DATE OF BIRTH</TableColumn>
-                            <TableColumn className="font-semibold">EMAIL</TableColumn>
+                            <TableColumn className="font-semibold">CREATED DATE</TableColumn>
                             <TableColumn className="font-semibold">PHONE</TableColumn>
-                            <TableColumn className="font-semibold w-16 text-center">ACTION</TableColumn>
+                            <TableColumn className="font-semibold">EMAIL</TableColumn>
+                            <TableColumn className="font-semibold">STATUS</TableColumn>
+                            <TableColumn className="font-semibold">TAGS</TableColumn>
                           </TableHeader>
                           <TableBody>
-                            {currentPatients.map((patient) => (
-                              <TableRow key={patient.id} className="cursor-pointer">
-                                <TableCell className="font-medium">{patient.fullName}</TableCell>
-                                <TableCell>{new Date(patient.dateOfBirth).toLocaleDateString('en-US', {
-                                  year: 'numeric',
-                                  month: 'short',
-                                  day: 'numeric'
-                                })}</TableCell>
-                                <TableCell className="text-gray-600">{patient.email}</TableCell>
-                                <TableCell className="text-gray-600">{patient.phoneNumber}</TableCell>
-                                <TableCell className="text-center">
-                                  <Button
-                                    size="sm"
-                                    className="bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-primary-600 hover:to-secondary-600 text-white transition-all duration-200 ease-in-out shadow-sm hover:shadow-md px-3"
-                                    onClick={() => handlePatientClick(patient)}
-                                  >
-                                    DETAILS
-                                  </Button>
+                            {patientsLoading ? (
+                              <TableRow>
+                                <TableCell colSpan={6} className="text-center py-8">
+                                  <div className="flex items-center justify-center">
+                                    <Icon icon="lucide:loader-2" className="w-6 h-6 animate-spin text-primary-600 mr-2" />
+                                    <span className="text-gray-600">Loading patients...</span>
+                                  </div>
                                 </TableCell>
                               </TableRow>
-                            ))}
+                            ) : patientsError ? (
+                              <TableRow>
+                                <TableCell colSpan={6} className="text-center py-8">
+                                  <div className="flex items-center justify-center text-red-600">
+                                    <Icon icon="lucide:alert-circle" className="w-6 h-6 mr-2" />
+                                    <span>{patientsError}</span>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ) : currentPatients.length === 0 ? (
+                              <TableRow>
+                                <TableCell colSpan={6} className="text-center py-8">
+                                  <div className="flex items-center justify-center text-gray-600">
+                                    <Icon icon="lucide:users" className="w-6 h-6 mr-2" />
+                                    <span>No patients found</span>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ) : (
+                              currentPatients.map((patient) => (
+                                <TableRow key={patient.opportunity_id} className="hover:bg-primary-50 transition-colors duration-200">
+                                  <TableCell className="font-medium">{patient.name}</TableCell>
+                                  <TableCell>{new Date(patient.created_at).toLocaleDateString('en-US', {
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric'
+                                  })}</TableCell>
+                                  <TableCell className="text-gray-600">{patient.contact.phone}</TableCell>
+                                  <TableCell className="text-gray-600">{patient.contact.email || 'N/A'}</TableCell>
+                                  <TableCell>
+                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary-600/10 text-primary-600">
+                                      {patient.status}
+                                    </span>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex flex-wrap gap-1">
+                                      {patient.contact.tags.map((tag: string, index: number) => (
+                                        <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-secondary-600/10 text-secondary-600">
+                                          {tag}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            )}
                           </TableBody>
                         </Table>
 
@@ -384,11 +420,6 @@ const App: React.FC = () => {
                 </Route>
 
               </Switch>
-
-              {/* Patient Details Route */}
-              <Route path="/patient/:id">
-                <PatientDetail patients={patients} />
-              </Route>
 
               {/* Sidebar Modal */}
               {isSidebarOpen && (
