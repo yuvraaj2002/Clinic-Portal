@@ -4,37 +4,19 @@ import { Icon } from "@iconify/react";
 import { BrowserRouter as Router, Route, Switch } from 'react-router-dom';
 import Auth from './components/Auth';
 import SetPassword from './components/SetPassword';
+import AdminPage from './components/AdminPage';
 import { useAuth } from './contexts/AuthContext';
 import { getPatients, Patient, PatientsResponse } from './utils/api';
 
-// Sample medications data
-const medications = [
-  { id: 1, name: "Lisinopril", dosage: "10 MG", frequency: "ONCE A DAY", type: "ACE Inhibitor", description: "Used to treat high blood pressure and heart failure", stock: 150, status: "In Stock", color: "green" },
-  { id: 2, name: "Amlodipine", dosage: "5 MG", frequency: "ONCE A DAY", type: "Calcium Channel Blocker", description: "Used to treat high blood pressure and angina", stock: 200, status: "In Stock", color: "blue" },
-  { id: 3, name: "Metformin", dosage: "500 MG", frequency: "TWICE A DAY", type: "Antidiabetic", description: "Used to treat type 2 diabetes", stock: 300, status: "In Stock", color: "purple" },
-  { id: 4, name: "Omeprazole", dosage: "20 MG", frequency: "ONCE A DAY", type: "Proton Pump Inhibitor", description: "Used to treat acid reflux and ulcers", stock: 180, status: "Low Stock", color: "orange" },
-  { id: 5, name: "Simvastatin", dosage: "20 MG", frequency: "ONCE A DAY", type: "Statin", description: "Used to lower cholesterol levels", stock: 250, status: "In Stock", color: "indigo" },
-  // Add more medications to reach 30 items...
-].concat(
-  Array.from({ length: 25 }, (_, i) => ({
-    id: i + 6,
-    name: `Medication ${i + 6}`,
-    dosage: `${(i + 1) * 5} MG`,
-    frequency: "ONCE A DAY",
-    type: "Generic Type",
-    description: "Generic medication description",
-    stock: 100 + (i * 10),
-    status: i % 3 === 0 ? "Low Stock" : "In Stock",
-    color: ["green", "blue", "purple", "orange", "indigo"][i % 5]
-  }))
-);
+
 
 // Patients will be loaded from API
 
 const App: React.FC = () => {
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, logout, user } = useAuth();
   const [activeTab, setActiveTab] = React.useState("patients");
   const [currentPage, setCurrentPage] = React.useState(1);
+  const [showWelcomeCard, setShowWelcomeCard] = React.useState(false);
 
   // State for API data
   const [patients, setPatients] = React.useState<Patient[]>([]);
@@ -42,7 +24,7 @@ const App: React.FC = () => {
   const [patientsError, setPatientsError] = React.useState<string | null>(null);
   const [patientsResponse, setPatientsResponse] = React.useState<PatientsResponse | null>(null);
 
-  const [searchQuery, setSearchQuery] = React.useState("");
+
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
   const [sidebarType, setSidebarType] = React.useState<'patient' | 'medication'>('patient');
   const [formData, setFormData] = React.useState({
@@ -79,12 +61,24 @@ const App: React.FC = () => {
   React.useEffect(() => {
     if (isAuthenticated) {
       fetchPatients();
+      // Show welcome card for new login/signup
+      setShowWelcomeCard(true);
+      // Hide welcome card after 5 seconds
+      setTimeout(() => {
+        setShowWelcomeCard(false);
+      }, 5000);
     }
   }, [isAuthenticated]);
 
   const handleAuthSuccess = () => {
     // Authentication is now handled by the context
     console.log('Authentication successful');
+    // Show welcome card for new authentication
+    setShowWelcomeCard(true);
+    // Hide welcome card after 5 seconds
+    setTimeout(() => {
+      setShowWelcomeCard(false);
+    }, 5000);
   };
 
   const handleLogout = async () => {
@@ -132,86 +126,9 @@ const App: React.FC = () => {
 
 
 
-  const filteredMedications = medications.filter(med =>
-    med.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    med.type.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
-  const renderMedicationsView = () => (
-    <div className="container mx-auto px-6 py-8 max-w-7xl">
-      {/* Header Section */}
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Medications</h2>
-          <p className="text-gray-600 text-sm mt-1">Manage and track medication inventory</p>
-        </div>
-        <div className="flex space-x-3">
-          <Input
-            placeholder="Search medications..."
-            startContent={<Icon icon="lucide:search" className="text-[gray-700] w-4 h-4" />}
-            className="w-64 premium-input"
-            size="sm"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            classNames={{
-              input: "text-[gray-700] placeholder-gray-400 outline-none focus:outline-none",
-              inputWrapper: "bg-white border border-[clinic-purple-600] hover:border-[clinic-purple-600] focus-within:border-[clinic-purple-600] focus-within:ring-1 focus-within:ring-[clinic-purple-600]/20 focus:outline-none focus:ring-0",
-              innerWrapper: "outline-none focus:outline-none focus:ring-0",
-              mainWrapper: "outline-none focus:outline-none focus:ring-0",
-            }}
-          />
-          <Button
-            className="bg-[clinic-purple-600] hover:bg-[clinic-purple-700] text-white font-medium px-4 py-2 rounded-lg transition-all duration-200 ease-in-out shadow-sm hover:shadow-md flex items-center space-x-2"
-            size="sm"
-            startContent={<Icon icon="lucide:plus" className="w-4 h-4" />}
-            onClick={() => openSidebar('medication')}
-          >
-            Add Medication
-          </Button>
-        </div>
-      </div>
 
-      {/* Medications Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto max-h-[calc(100vh-220px)]">
-        {filteredMedications.map((medication) => (
-          <Card
-            key={medication.id}
-            className="bg-white border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 rounded-xl cursor-pointer"
-          >
-            <CardBody className="p-4">
-              <div className="flex items-start justify-between mb-3">
-                <div className="w-10 h-10 bg-[clinic-purple-600]/10 rounded-lg flex items-center justify-center">
-                  <Icon icon="lucide:pill" className="w-5 h-5 text-[clinic-purple-600]" />
-                </div>
-                <span className={`text-xs font-medium px-2 py-1 rounded-full ${medication.status === "In Stock"
-                  ? "bg-[clinic-purple-600]/10 text-[clinic-purple-600]"
-                  : "bg-orange-100 text-orange-800"
-                  }`}>
-                  {medication.status}
-                </span>
-              </div>
 
-              <div className="space-y-2">
-                <div>
-                  <h3 className="text-lg font-semibold text-[gray-700]">{medication.name}</h3>
-                  <p className="text-[clinic-purple-600] text-xs font-medium uppercase tracking-wider">
-                    {medication.dosage} {medication.frequency}
-                  </p>
-                </div>
-
-                <p className="text-[gray-700]/70 text-sm line-clamp-2">{medication.description}</p>
-
-                <div className="pt-2">
-                  <p className="text-xs font-medium text-[gray-700]/50 uppercase tracking-wider">Stock Level</p>
-                  <p className="text-[gray-700] font-medium">{medication.stock} units</p>
-                </div>
-              </div>
-            </CardBody>
-          </Card>
-        ))}
-      </div>
-    </div>
-  );
 
   return (
     <Router>
@@ -257,15 +174,6 @@ const App: React.FC = () => {
                         </div>
                       }
                     />
-                    <Tab
-                      key="medications"
-                      title={
-                        <div className="flex items-center space-x-2 px-3 py-2">
-                          <Icon icon="lucide:pill" className="w-4 h-4" />
-                          <span className="font-medium">Medications</span>
-                        </div>
-                      }
-                    />
                   </Tabs>
                 </NavbarContent>
                 <NavbarContent justify="end" className="px-6">
@@ -279,9 +187,46 @@ const App: React.FC = () => {
                 </NavbarContent>
               </Navbar>
 
+              {/* Welcome Card */}
+              {showWelcomeCard && user && (
+                <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-right duration-300">
+                  <Card className="bg-gradient-to-r from-primary-500/90 to-secondary-500/90 backdrop-blur-sm border-0 shadow-2xl rounded-2xl overflow-hidden min-w-80">
+                    <CardBody className="p-6">
+                      <div className="flex items-center space-x-4">
+                        <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                          <Icon icon="lucide:user-check" className="w-6 h-6 text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="text-lg font-bold text-white mb-1">
+                            Welcome back, {user.name}!
+                          </h3>
+                          <p className="text-white/80 text-sm">
+                            {user.admin_access
+                              ? "You're now logged in to OHC Pharmacy Admin Dashboard"
+                              : "You're now logged in to OHC Pharmacy Dashboard"
+                            }
+                          </p>
+                        </div>
+                        <Button
+                          isIconOnly
+                          variant="light"
+                          size="sm"
+                          className="text-white hover:bg-white/20"
+                          onClick={() => setShowWelcomeCard(false)}
+                        >
+                          <Icon icon="lucide:x" className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </CardBody>
+                  </Card>
+                </div>
+              )}
+
               <Switch>
                 <Route exact path="/">
-                  {activeTab === "medications" ? renderMedicationsView() : (
+                  {user?.admin_access ? (
+                    <AdminPage />
+                  ) : (
                     /* Main Content Area */
                     <main className="container mx-auto px-6 py-8 max-w-7xl min-h-[calc(100vh-200px)]">
                       {/* Compact Header Section */}

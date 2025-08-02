@@ -3,16 +3,10 @@ import { isAuthenticated as checkAuth, getUserProfile, logout as apiLogout } fro
 
 interface User {
     id: number;
-    first_name: string;
-    last_name: string;
-    username: string;
+    name: string;
     email: string;
+    admin_access: boolean;
     is_active: boolean;
-    is_admin: boolean;
-    playground_access: boolean;
-    sequential_calling_access: boolean;
-    voice_agent_access: boolean;
-    chat_agent_access: boolean;
     created_at: string;
     updated_at: string;
 }

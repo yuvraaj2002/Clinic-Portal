@@ -23,7 +23,7 @@ export const apiCall = async (
 };
 
 export const login = async (email: string, password: string) => {
-    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+    const response = await fetch(`${API_BASE_URL}/provider/login`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -33,7 +33,29 @@ export const login = async (email: string, password: string) => {
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Login failed');
+        throw new Error(errorData.detail || 'Login failed');
+    }
+
+    return response.json();
+};
+
+export const signup = async (name: string, email: string, password: string, admin_access: boolean = false) => {
+    const response = await fetch(`${API_BASE_URL}/provider/signup`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            name,
+            email,
+            password,
+            admin_access,
+        }),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Signup failed');
     }
 
     return response.json();
@@ -42,7 +64,7 @@ export const login = async (email: string, password: string) => {
 export const logout = async () => {
     try {
         // Call the backend logout endpoint
-        const response = await apiCall('/auth/logout', {
+        const response = await apiCall('/provider/logout', {
             method: 'POST',
         });
 
@@ -64,11 +86,11 @@ export const logout = async () => {
 };
 
 export const getUserProfile = async () => {
-    const response = await apiCall('/auth/me');
+    const response = await apiCall('/provider/me');
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to fetch user profile');
+        throw new Error(errorData.detail || 'Failed to fetch user profile');
     }
 
     return response.json();

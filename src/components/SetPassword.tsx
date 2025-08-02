@@ -12,6 +12,8 @@ interface SetPasswordProps {
 interface UserData {
     first_name: string;
     last_name: string;
+    username: string;
+    type: string;
 }
 
 const SetPassword: React.FC<SetPasswordProps> = ({ onAuthSuccess }) => {
@@ -19,18 +21,20 @@ const SetPassword: React.FC<SetPasswordProps> = ({ onAuthSuccess }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [email, setEmail] = useState('');
     const [userData, setUserData] = useState<UserData | null>(null);
+    const [providerName, setProviderName] = useState<string>('');
     const [formData, setFormData] = useState({
-        username: '',
         newPassword: '',
         confirmPassword: '',
     });
     const [passwordError, setPasswordError] = useState('');
 
     useEffect(() => {
-        // Get token from URL parameters
+        // Get token and provider_name from URL parameters
         const urlParams = new URLSearchParams(location.search);
         const token = urlParams.get('token');
+        const providerName = urlParams.get('provider_name');
         console.log('Token from URL:', token);
+        console.log('Provider name from URL:', providerName);
 
         if (!token) {
             console.error('No token found in URL');
@@ -49,17 +53,37 @@ const SetPassword: React.FC<SetPasswordProps> = ({ onAuthSuccess }) => {
             // Decode the payload (middle part)
             const payload = JSON.parse(atob(tokenParts[1]));
             console.log('JWT Payload:', payload);
+            console.log('All JWT payload keys:', Object.keys(payload));
 
             // Check for email in different possible fields
             const userEmail = payload.email || payload.sub || payload.user_email;
+            const username = payload.username || payload.user_username || '';
+            const userType = payload.type || payload.user_type || 'user';
+
+            // Extract name from various possible fields
+            const firstName = payload.first_name || payload.firstName || payload.given_name || payload.name?.split(' ')[0] || '';
+            const lastName = payload.last_name || payload.lastName || payload.family_name || payload.name?.split(' ').slice(1).join(' ') || '';
+            const fullName = payload.name || payload.full_name || payload.display_name || '';
+
             console.log('Extracted email:', userEmail);
+            console.log('Extracted username:', username);
+            console.log('Extracted type:', userType);
+            console.log('Extracted firstName:', firstName);
+            console.log('Extracted lastName:', lastName);
+            console.log('Extracted fullName:', fullName);
 
             if (userEmail) {
                 setEmail(userEmail);
+                // Store provider name from URL parameter if available
+                if (providerName) {
+                    setProviderName(providerName);
+                }
                 // Store user data from JWT payload
                 setUserData({
-                    first_name: payload.first_name || '',
-                    last_name: payload.last_name || ''
+                    first_name: firstName,
+                    last_name: lastName,
+                    username: username,
+                    type: userType
                 });
             } else {
                 throw new Error('Email not found in token');
@@ -81,7 +105,7 @@ const SetPassword: React.FC<SetPasswordProps> = ({ onAuthSuccess }) => {
     };
 
     const validateForm = () => {
-        if (!formData.username.trim()) {
+        if (!userData?.username?.trim()) {
             setPasswordError('Username is required');
             return false;
         }
@@ -105,16 +129,17 @@ const SetPassword: React.FC<SetPasswordProps> = ({ onAuthSuccess }) => {
 
         setIsLoading(true);
         try {
-            const response = await fetch(`${API_BASE_URL}/auth/signup`, {
+            const response = await fetch(`${API_BASE_URL}/provider/signup`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    first_name: userData?.first_name || '',
-                    last_name: userData?.last_name || '',
-                    username: formData.username,
+                    name: providerName || (userData?.first_name && userData?.last_name
+                        ? `${userData.first_name} ${userData.last_name}`.trim()
+                        : userData?.first_name || userData?.last_name || email.split('@')[0] || 'New Provider'),
                     email: email,
+                    admin_access: userData?.type === 'admin',
                     password: formData.newPassword,
                 }),
             });
@@ -130,20 +155,16 @@ const SetPassword: React.FC<SetPasswordProps> = ({ onAuthSuccess }) => {
             sessionStorage.setItem('access_token', data.access_token);
             sessionStorage.setItem('token_type', data.token_type);
 
-            // Fetch user info and update AuthProvider state
-            const userRes = await fetch(`${API_BASE_URL}/auth/me`, {
-                headers: {
-                    Authorization: `Bearer ${data.access_token}`,
-                },
-            });
-
-            if (userRes.ok) {
-                const userData = await userRes.json();
-                sessionStorage.setItem('userData', JSON.stringify(userData));
+            // Store provider info in session storage
+            if (data.provider) {
+                sessionStorage.setItem('userData', JSON.stringify(data.provider));
             }
 
             console.log('Password set successfully');
             onAuthSuccess();
+
+            // Redirect to patients page after successful signup
+            window.location.href = '/';
         } catch (error: any) {
             console.error('Error setting password:', error);
             setPasswordError(error.message || 'Failed to set password. Please try again.');
@@ -197,29 +218,47 @@ const SetPassword: React.FC<SetPasswordProps> = ({ onAuthSuccess }) => {
                                     value={email}
                                     disabled
                                     classNames={{
-                                        input: "text-gray-800 bg-gray-100 cursor-not-allowed",
-                                        inputWrapper: "bg-gray-100 border border-gray-200",
+                                        input: "text-gray-800 bg-gray-50 cursor-not-allowed",
+                                        inputWrapper: "bg-gray-50 border border-gray-200",
+                                        innerWrapper: "cursor-not-allowed",
+                                        mainWrapper: "cursor-not-allowed",
                                     }}
+                                    startContent={<Icon icon="lucide:mail" className="text-primary-600 w-4 h-4" />}
                                 />
                                 <p className="text-xs text-gray-500">This email was extracted from your invite link</p>
                             </div>
 
-                            <Input
-                                label="Username"
-                                placeholder="Enter your username"
-                                value={formData.username}
-                                onChange={(e) => handleChange(e)}
-                                name="username"
-                                required
-                                classNames={{
-                                    label: "text-gray-700 font-medium",
-                                    input: "text-gray-800 placeholder-gray-400 focus:outline-none",
-                                    inputWrapper: "bg-white border border-gray-200 hover:border-clinic-purple-500 focus-within:border-clinic-purple-500 focus-within:ring-1 focus-within:ring-clinic-purple-500/20 focus:outline-none focus:ring-0",
-                                    innerWrapper: "focus:outline-none focus:ring-0",
-                                    mainWrapper: "focus:outline-none focus:ring-0",
-                                }}
-                                startContent={<Icon icon="lucide:user" className="text-primary-600 w-4 h-4" />}
-                            />
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-gray-700">Username</label>
+                                <Input
+                                    value={userData?.username || ''}
+                                    disabled
+                                    classNames={{
+                                        input: "text-gray-800 bg-gray-50 cursor-not-allowed",
+                                        inputWrapper: "bg-gray-50 border border-gray-200",
+                                        innerWrapper: "cursor-not-allowed",
+                                        mainWrapper: "cursor-not-allowed",
+                                    }}
+                                    startContent={<Icon icon="lucide:user" className="text-primary-600 w-4 h-4" />}
+                                />
+                                <p className="text-xs text-gray-500">This username was extracted from your invite link</p>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-gray-700">Account Type</label>
+                                <Input
+                                    value={userData?.type || ''}
+                                    disabled
+                                    classNames={{
+                                        input: "text-gray-800 bg-gray-50 cursor-not-allowed",
+                                        inputWrapper: "bg-gray-50 border border-gray-200",
+                                        innerWrapper: "cursor-not-allowed",
+                                        mainWrapper: "cursor-not-allowed",
+                                    }}
+                                    startContent={<Icon icon="lucide:shield" className="text-primary-600 w-4 h-4" />}
+                                />
+                                <p className="text-xs text-gray-500">This account type was extracted from your invite link</p>
+                            </div>
 
                             <Input
                                 label="New Password"
@@ -280,7 +319,7 @@ const SetPassword: React.FC<SetPasswordProps> = ({ onAuthSuccess }) => {
                                     </div>
                                 ) : (
                                     <div className="flex items-center space-x-2">
-                                        <span>Set Password & Login</span>
+                                        <span>Set Password & Complete Setup</span>
                                         <Icon icon="lucide:arrow-right" className="w-4 h-4" />
                                     </div>
                                 )}
