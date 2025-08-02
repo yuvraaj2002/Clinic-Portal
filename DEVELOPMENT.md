@@ -5,7 +5,6 @@
 This project is configured to catch unused imports and variables early in development to prevent build failures during deployment.
 
 ### Quick Fix Commands
-
 ```bash
 # Fix all unused imports automatically
 npm run fix-unused
