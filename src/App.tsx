@@ -6,7 +6,7 @@ import Auth from './components/Auth';
 import SetPassword from './components/SetPassword';
 import AdminPage from './components/AdminPage';
 import { useAuth } from './contexts/AuthContext';
-import { getPatients, Patient, PatientsResponse } from './utils/api';
+import { getPatients, Patient } from './utils/api';
 
 
 

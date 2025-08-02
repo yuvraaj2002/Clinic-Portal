@@ -51,7 +51,7 @@ const SetPassword: React.FC<SetPasswordProps> = ({ onAuthSuccess }) => {
             }
 
             // Decode the payload (middle part)
-            const payload = JSON.parse(atob(tokenParts[1]));
+            const payload = JSON.parse(atob(tokenParts[1] || ''));
             console.log('JWT Payload:', payload);
             console.log('All JWT payload keys:', Object.keys(payload));
 
