@@ -9,7 +9,9 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "lint:fix": "eslint . --ext ts,tsx --fix",
     "fix-unused": "node scripts/fix-unused-imports.js",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "zip": "node scripts/create-zip.js",
+    "quick-zip": "node scripts/quick-zip.js"
   },
   "dependencies": {
     "@heroui/react": "^2.8.0",
@@ -28,6 +30,7 @@
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
     "@vitejs/plugin-react": "^4.0.3",
+    "archiver": "^6.0.2",
     "autoprefixer": "^10.4.14",
     "eslint": "^8.45.0",
     "eslint-plugin-react-hooks": "^4.6.0",

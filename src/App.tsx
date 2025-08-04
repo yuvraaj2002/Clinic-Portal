@@ -296,15 +296,6 @@ const App: React.FC = () => {
                               mainWrapper: "focus:outline-none focus:ring-0",
                             }}
                           />
-                          {/* Add Patient Button */}
-                          <Button
-                            className="bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-primary-600 hover:to-secondary-600 text-white font-medium px-4 py-2 rounded-lg transition-all duration-200 ease-in-out shadow-sm hover:shadow-md flex items-center space-x-2"
-                            size="sm"
-                            startContent={<Icon icon="lucide:plus" className="w-4 h-4" />}
-                            onClick={() => openSidebar('patient')}
-                          >
-                            Add Patient
-                          </Button>
                         </div>
                       </div>
 
@@ -436,12 +427,6 @@ const App: React.FC = () => {
                         </div>
                       ) : contactDetails[selectedPatient.opportunity_id] ? (
                         <div className="space-y-6">
-                          {/* Contact ID */}
-                          <div className="flex items-center justify-between bg-gray-50 p-4 rounded-lg">
-                            <span className="text-sm font-medium text-gray-600">Contact ID:</span>
-                            <span className="text-sm font-mono bg-white px-3 py-1 rounded border">{contactDetails[selectedPatient.opportunity_id]?.contact_id}</span>
-                          </div>
-
                           {/* Basic Information */}
                           <div className="bg-gradient-to-r from-primary-50 to-secondary-50 p-6 rounded-xl">
                             <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">

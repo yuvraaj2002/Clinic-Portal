@@ -134,6 +134,7 @@ export interface PatientContact {
 export interface Patient {
     opportunity_id: string;
     contact: PatientContact;
+    provider_name?: string;
 }
 
 export interface CustomField {
@@ -150,6 +151,20 @@ export interface ContactData {
     emailLowerCase: string;
     email: string;
     customField: CustomField[];
+}
+
+export interface Provider {
+    name: string;
+    email: string;
+    is_active: boolean;
+    created_at: string;
+}
+
+export interface ProvidersResponse {
+    success: boolean;
+    count: number;
+    providers: Provider[];
+    active_providers_count: number;
 }
 
 export interface ContactDetailsResponse {
@@ -221,5 +236,49 @@ export const getContactDetails = async (contactId: string): Promise<ContactDetai
 
     const data = await response.json();
     console.log('Contact Details API Success Response:', data);
+    return data;
+};
+
+// Function to fetch providers for admin users
+export const getProviders = async (): Promise<ProvidersResponse> => {
+    console.log('Fetching providers for admin user');
+    const endpoint = '/provider/non-admin-providers';
+    console.log('Providers API endpoint:', endpoint);
+
+    const response = await apiCall(endpoint);
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Providers API Error Response:', errorData);
+        throw new Error(errorData.detail || errorData.message || 'Failed to fetch providers');
+    }
+
+    const data = await response.json();
+    console.log('Providers API Success Response:', data);
+    return data;
+};
+
+// Function to update patient contact data
+export const updatePatientContactData = async (contactId: string, updatedData: any): Promise<any> => {
+    console.log('Updating patient contact data for contact ID:', contactId);
+    const endpoint = `/provider/update-contact-data`;
+    console.log('Update contact data API endpoint:', endpoint);
+
+    const response = await apiCall(endpoint, {
+        method: 'PUT',
+        body: JSON.stringify({
+            contact_id: contactId,
+            contact_data: updatedData
+        })
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Update Contact Data API Error Response:', errorData);
+        throw new Error(errorData.detail || errorData.message || 'Failed to update patient data');
+    }
+
+    const data = await response.json();
+    console.log('Update Contact Data API Success Response:', data);
     return data;
 }; 
