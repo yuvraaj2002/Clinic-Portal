@@ -6,7 +6,7 @@ import Auth from './components/Auth';
 import SetPassword from './components/SetPassword';
 import AdminPage from './components/AdminPage';
 import { useAuth } from './contexts/AuthContext';
-import { getPatients, Patient } from './utils/api';
+import { getPatients, getContactDetails, Patient, ContactDetailsResponse } from './utils/api';
 
 
 
@@ -20,8 +20,20 @@ const App: React.FC = () => {
 
   // State for API data
   const [patients, setPatients] = React.useState<Patient[]>([]);
+  const [totalPatients, setTotalPatients] = React.useState(0);
   const [patientsLoading, setPatientsLoading] = React.useState(true);
   const [patientsError, setPatientsError] = React.useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [expandedRows, setExpandedRows] = React.useState<Set<string>>(new Set());
+  const [contactDetails, setContactDetails] = React.useState<Record<string, ContactDetailsResponse>>({});
+  const [loadingDetails, setLoadingDetails] = React.useState<Set<string>>(new Set());
+  const [showDetailsModal, setShowDetailsModal] = React.useState(false);
+  const [selectedPatient, setSelectedPatient] = React.useState<Patient | null>(null);
+
+  // Reset to first page when search query changes
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
 
 
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
@@ -45,8 +57,17 @@ const App: React.FC = () => {
     try {
       setPatientsLoading(true);
       setPatientsError(null);
-      const response = await getPatients();
+
+      // For non-admin users, use their name as provider parameter
+      let providerName;
+      if (user && !user.admin_access) {
+        providerName = user.name;
+      }
+
+      console.log('Fetching patients for user:', user?.name, 'Admin:', user?.admin_access);
+      const response = await getPatients(providerName);
       setPatients(response.patients);
+      setTotalPatients(response.total_patients);
     } catch (error) {
       console.error('Failed to fetch patients:', error);
       setPatientsError(error instanceof Error ? error.message : 'Failed to fetch patients');
@@ -57,7 +78,7 @@ const App: React.FC = () => {
 
   // Load patients when component mounts
   React.useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && user) {
       fetchPatients();
       // Show welcome card for new login/signup
       setShowWelcomeCard(true);
@@ -66,7 +87,7 @@ const App: React.FC = () => {
         setShowWelcomeCard(false);
       }, 5000);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user]);
 
   const handleAuthSuccess = () => {
     // Authentication is now handled by the context
@@ -116,9 +137,53 @@ const App: React.FC = () => {
     closeSidebar();
   };
 
-  const totalPages = Math.ceil(patients.length / patientsPerPage);
+  const openDetailsModal = async (patient: Patient) => {
+    setSelectedPatient(patient);
+    setShowDetailsModal(true);
+
+    // Fetch contact details if not already loaded
+    if (!contactDetails[patient.opportunity_id]) {
+      await fetchContactDetails(patient.opportunity_id, patient.contact.id);
+    }
+  };
+
+  const closeDetailsModal = () => {
+    setShowDetailsModal(false);
+    setSelectedPatient(null);
+  };
+
+  const fetchContactDetails = async (opportunityId: string, contactId: string) => {
+    // Don't fetch if already loaded
+    if (contactDetails[opportunityId]) return;
+
+    try {
+      setLoadingDetails(prev => new Set(prev).add(opportunityId));
+      const response = await getContactDetails(contactId);
+      setContactDetails(prev => ({
+        ...prev,
+        [opportunityId]: response
+      }));
+    } catch (error) {
+      console.error('Failed to fetch contact details:', error);
+    } finally {
+      setLoadingDetails(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(opportunityId);
+        return newSet;
+      });
+    }
+  };
+
+  // Filter patients based on search query
+  const filteredPatients = patients.filter(patient =>
+    patient.contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (patient.contact.phone && patient.contact.phone.includes(searchQuery)) ||
+    (patient.contact.email && patient.contact.email.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  const totalPages = Math.ceil(filteredPatients.length / patientsPerPage);
   const startIndex = (currentPage - 1) * patientsPerPage;
-  const currentPatients = patients.slice(startIndex, startIndex + patientsPerPage);
+  const currentPatients = filteredPatients.slice(startIndex, startIndex + patientsPerPage);
 
 
 
@@ -150,30 +215,6 @@ const App: React.FC = () => {
                     <h1 className="font-bold text-foreground text-xl tracking-tight">OHC Pharmacy</h1>
                   </div>
                 </NavbarBrand>
-                <NavbarContent justify="center" className="px-6">
-                  <Tabs
-                    aria-label="Navigation tabs"
-                    color="primary"
-                    variant="solid"
-                    selectedKey={activeTab}
-                    onSelectionChange={setActiveTab as any}
-                    classNames={{
-                      tabList: "bg-white border border-border p-1 rounded-lg shadow-sm",
-                      tab: "text-muted hover:text-primary-600 hover:bg-primary-50 data-[selected=true]:text-white data-[selected=true]:bg-gradient-to-r data-[selected=true]:from-primary-500 data-[selected=true]:to-secondary-500 data-[selected=true]:shadow-md",
-                      cursor: "bg-gradient-to-r from-primary-500 to-secondary-500",
-                    }}
-                  >
-                    <Tab
-                      key="patients"
-                      title={
-                        <div className="flex items-center space-x-2 px-3 py-2">
-                          <Icon icon="lucide:users" className="w-4 h-4" />
-                          <span className="font-medium">Patients</span>
-                        </div>
-                      }
-                    />
-                  </Tabs>
-                </NavbarContent>
                 <NavbarContent justify="end" className="px-6">
                   <Button
                     className="bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-primary-600 hover:to-secondary-600 text-white font-medium px-4 py-2 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
@@ -183,6 +224,7 @@ const App: React.FC = () => {
                     Sign Out
                   </Button>
                 </NavbarContent>
+
               </Navbar>
 
               {/* Welcome Card */}
@@ -231,12 +273,19 @@ const App: React.FC = () => {
                       <div className="flex justify-between items-center mb-8">
                         <div>
                           <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Patients</h2>
-                          <p className="text-gray-600 text-sm mt-1">Manage and view patient records</p>
+                          <p className="text-gray-600 text-sm mt-1">
+                            {user?.admin_access
+                              ? "Manage and view patient records"
+                              : `Your patients (${totalPatients} total)`
+                            }
+                          </p>
                         </div>
                         <div className="flex space-x-3">
                           {/* Compact Search Bar */}
                           <Input
                             placeholder="Search patients..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
                             startContent={<Icon icon="lucide:search" className="text-foreground w-4 h-4" />}
                             className="w-64 premium-input"
                             size="sm"
@@ -274,16 +323,14 @@ const App: React.FC = () => {
                         >
                           <TableHeader>
                             <TableColumn className="font-semibold">FULL NAME</TableColumn>
-                            <TableColumn className="font-semibold">CREATED DATE</TableColumn>
                             <TableColumn className="font-semibold">PHONE</TableColumn>
                             <TableColumn className="font-semibold">EMAIL</TableColumn>
-                            <TableColumn className="font-semibold">STATUS</TableColumn>
-                            <TableColumn className="font-semibold">TAGS</TableColumn>
+                            <TableColumn className="font-semibold">DETAILS</TableColumn>
                           </TableHeader>
                           <TableBody>
                             {patientsLoading ? (
                               <TableRow>
-                                <TableCell colSpan={6} className="text-center py-8">
+                                <TableCell colSpan={4} className="text-center py-8">
                                   <div className="flex items-center justify-center">
                                     <Icon icon="lucide:loader-2" className="w-6 h-6 animate-spin text-primary-600 mr-2" />
                                     <span className="text-gray-600">Loading patients...</span>
@@ -292,7 +339,7 @@ const App: React.FC = () => {
                               </TableRow>
                             ) : patientsError ? (
                               <TableRow>
-                                <TableCell colSpan={6} className="text-center py-8">
+                                <TableCell colSpan={4} className="text-center py-8">
                                   <div className="flex items-center justify-center text-red-600">
                                     <Icon icon="lucide:alert-circle" className="w-6 h-6 mr-2" />
                                     <span>{patientsError}</span>
@@ -301,7 +348,7 @@ const App: React.FC = () => {
                               </TableRow>
                             ) : currentPatients.length === 0 ? (
                               <TableRow>
-                                <TableCell colSpan={6} className="text-center py-8">
+                                <TableCell colSpan={4} className="text-center py-8">
                                   <div className="flex items-center justify-center text-gray-600">
                                     <Icon icon="lucide:users" className="w-6 h-6 mr-2" />
                                     <span>No patients found</span>
@@ -311,27 +358,19 @@ const App: React.FC = () => {
                             ) : (
                               currentPatients.map((patient) => (
                                 <TableRow key={patient.opportunity_id} className="hover:bg-primary-50 transition-colors duration-200">
-                                  <TableCell className="font-medium">{patient.name}</TableCell>
-                                  <TableCell>{new Date(patient.created_at).toLocaleDateString('en-US', {
-                                    year: 'numeric',
-                                    month: 'short',
-                                    day: 'numeric'
-                                  })}</TableCell>
-                                  <TableCell className="text-gray-600">{patient.contact.phone}</TableCell>
+                                  <TableCell className="font-medium">{patient.contact.name}</TableCell>
+                                  <TableCell className="text-gray-600">{patient.contact.phone || 'N/A'}</TableCell>
                                   <TableCell className="text-gray-600">{patient.contact.email || 'N/A'}</TableCell>
                                   <TableCell>
-                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary-600/10 text-primary-600">
-                                      {patient.status}
-                                    </span>
-                                  </TableCell>
-                                  <TableCell>
-                                    <div className="flex flex-wrap gap-1">
-                                      {patient.contact.tags.map((tag: string, index: number) => (
-                                        <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-secondary-600/10 text-secondary-600">
-                                          {tag}
-                                        </span>
-                                      ))}
-                                    </div>
+                                    <Button
+                                      size="sm"
+                                      variant="light"
+                                      className="bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-primary-600 hover:to-secondary-600 text-white"
+                                      startContent={<Icon icon="lucide:eye" className="w-4 h-4" />}
+                                      onClick={() => openDetailsModal(patient)}
+                                    >
+                                      Details
+                                    </Button>
                                   </TableCell>
                                 </TableRow>
                               ))
@@ -342,7 +381,8 @@ const App: React.FC = () => {
                         {/* Premium Pagination */}
                         <div className="flex justify-between items-center px-6 py-4 bg-gray-50 border-t border-gray-100">
                           <div className="text-sm text-gray-600">
-                            Showing {startIndex + 1} to {Math.min(startIndex + patientsPerPage, patients.length)} of {patients.length} patients
+                            Showing {startIndex + 1} to {Math.min(startIndex + patientsPerPage, filteredPatients.length)} of {filteredPatients.length} patients
+                            {searchQuery && ` (filtered from ${totalPatients} total)`}
                           </div>
                           <Pagination
                             total={totalPages}
@@ -363,6 +403,141 @@ const App: React.FC = () => {
                 </Route>
 
               </Switch>
+
+              {/* Patient Details Modal */}
+              {showDetailsModal && selectedPatient && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+                  <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+                    {/* Modal Header */}
+                    <div className="bg-gradient-to-r from-primary-500 to-secondary-500 p-6 text-white">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h2 className="text-2xl font-bold">Patient Details</h2>
+                          <p className="text-white/80 mt-1">{selectedPatient.contact.name}</p>
+                        </div>
+                        <Button
+                          isIconOnly
+                          variant="light"
+                          size="sm"
+                          className="text-white hover:bg-white/20"
+                          onClick={closeDetailsModal}
+                        >
+                          <Icon icon="lucide:x" className="w-5 h-5" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Modal Body */}
+                    <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+                      {loadingDetails.has(selectedPatient.opportunity_id) ? (
+                        <div className="flex items-center justify-center py-12">
+                          <Icon icon="lucide:loader-2" className="w-8 h-8 animate-spin text-primary-600 mr-3" />
+                          <span className="text-gray-600 font-medium text-lg">Loading patient details...</span>
+                        </div>
+                      ) : contactDetails[selectedPatient.opportunity_id] ? (
+                        <div className="space-y-6">
+                          {/* Contact ID */}
+                          <div className="flex items-center justify-between bg-gray-50 p-4 rounded-lg">
+                            <span className="text-sm font-medium text-gray-600">Contact ID:</span>
+                            <span className="text-sm font-mono bg-white px-3 py-1 rounded border">{contactDetails[selectedPatient.opportunity_id]?.contact_id}</span>
+                          </div>
+
+                          {/* Basic Information */}
+                          <div className="bg-gradient-to-r from-primary-50 to-secondary-50 p-6 rounded-xl">
+                            <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                              <Icon icon="lucide:user" className="w-5 h-5 mr-2 text-primary-600" />
+                              Basic Information
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              <div className="space-y-4">
+                                <div>
+                                  <span className="text-sm font-medium text-gray-600 block mb-1">Full Name:</span>
+                                  <p className="text-lg font-semibold text-gray-900">{contactDetails[selectedPatient.opportunity_id]?.contact_data?.fullNameLowerCase}</p>
+                                </div>
+                                <div>
+                                  <span className="text-sm font-medium text-gray-600 block mb-1">Email:</span>
+                                  <p className="text-gray-900">{contactDetails[selectedPatient.opportunity_id]?.contact_data?.email}</p>
+                                </div>
+                              </div>
+                              <div className="space-y-4">
+                                <div>
+                                  <span className="text-sm font-medium text-gray-600 block mb-1">Phone:</span>
+                                  <p className="text-gray-900">{contactDetails[selectedPatient.opportunity_id]?.contact_data?.phone}</p>
+                                </div>
+                                <div>
+                                  <span className="text-sm font-medium text-gray-600 block mb-1">Country:</span>
+                                  <p className="text-gray-900">{contactDetails[selectedPatient.opportunity_id]?.contact_data?.country}</p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Custom Fields */}
+                          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                            <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                              <h3 className="text-xl font-bold text-gray-900 flex items-center">
+                                <Icon icon="lucide:file-text" className="w-5 h-5 mr-2 text-primary-600" />
+                                Additional Information
+                              </h3>
+                            </div>
+                            <div className="p-6">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {contactDetails[selectedPatient.opportunity_id]?.contact_data?.customField?.map((field, index) => (
+                                  <div key={field.id} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                    <span className="text-sm font-semibold text-gray-700 block mb-2">{field.name}:</span>
+                                    <div className="text-gray-900">
+                                      {typeof field.value === 'string' ? (
+                                        <span className="text-sm">{field.value}</span>
+                                      ) : typeof field.value === 'number' ? (
+                                        <span className="text-sm font-medium">{field.value}</span>
+                                      ) : Array.isArray(field.value) ? (
+                                        <div className="flex flex-wrap gap-1">
+                                          {field.value.map((item, idx) => (
+                                            <span key={idx} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
+                                              {item}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      ) : typeof field.value === 'object' && field.value !== null ? (
+                                        <div className="space-y-2">
+                                          <span className="text-xs font-medium text-gray-600 block">Document/File:</span>
+                                          {Object.keys(field.value).map((key, idx) => {
+                                            const fileData = (field.value as any)[key];
+                                            return (
+                                              <div key={idx} className="flex items-center space-x-2 p-2 bg-white rounded border">
+                                                <Icon icon="lucide:file-text" className="w-4 h-4 text-primary-600" />
+                                                <a
+                                                  href={fileData.url}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  className="text-primary-600 hover:text-primary-800 underline text-sm"
+                                                >
+                                                  {fileData.meta.originalname}
+                                                </a>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      ) : (
+                                        <span className="text-gray-500 text-sm">No value</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center py-12 text-red-600">
+                          <Icon icon="lucide:alert-circle" className="w-8 h-8 mr-3" />
+                          <span className="text-lg">Failed to load patient details</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Sidebar Modal */}
               {isSidebarOpen && (

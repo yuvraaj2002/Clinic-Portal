@@ -1,6 +1,9 @@
 // API utility functions for making authenticated requests
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
+// Debug: Log API base URL
+console.log('API Base URL:', API_BASE_URL);
+
 export const apiCall = async (
     endpoint: string,
     options: RequestInit = {}
@@ -16,7 +19,11 @@ export const apiCall = async (
         headers['Authorization'] = `Bearer ${token}`;
     }
 
-    return fetch(`${API_BASE_URL}${endpoint}`, {
+    const url = `${API_BASE_URL}${endpoint}`;
+    console.log('Making API call to:', url);
+    console.log('Headers:', headers);
+
+    return fetch(url, {
         ...options,
         headers,
     });
@@ -36,7 +43,14 @@ export const login = async (email: string, password: string) => {
         throw new Error(errorData.detail || 'Login failed');
     }
 
-    return response.json();
+    const data = await response.json();
+
+    // Store user data in session storage for later use
+    if (data.user) {
+        sessionStorage.setItem('userData', JSON.stringify(data.user));
+    }
+
+    return data;
 };
 
 export const signup = async (name: string, email: string, password: string, admin_access: boolean = false) => {
@@ -112,21 +126,36 @@ export const getTokenType = (): string | null => {
 export interface PatientContact {
     id: string;
     name: string;
-    company_name: string | null;
-    phone: string;
+    phone: string | null;
     email: string | null;
-    tags: string[];
+    tags?: string[];
 }
 
 export interface Patient {
     opportunity_id: string;
-    name: string;
-    monetary_value: number;
-    status: string;
-    source: string | null;
-    created_at: string;
-    last_status_change: string;
     contact: PatientContact;
+}
+
+export interface CustomField {
+    id: string;
+    name: string;
+    value: string | number | string[] | object;
+}
+
+export interface ContactData {
+    locationId: string;
+    phone: string;
+    country: string;
+    fullNameLowerCase: string;
+    emailLowerCase: string;
+    email: string;
+    customField: CustomField[];
+}
+
+export interface ContactDetailsResponse {
+    success: boolean;
+    contact_data: ContactData;
+    contact_id: string;
 }
 
 export interface PatientsResponse {
@@ -138,13 +167,59 @@ export interface PatientsResponse {
 }
 
 // Function to fetch patients from the API
-export const getPatients = async (providerName: string = "BridgeCreek Patient"): Promise<PatientsResponse> => {
-    const response = await apiCall(`/ghl/provider-patients?provider_name=${encodeURIComponent(providerName)}`);
+export const getPatients = async (providerName?: string): Promise<PatientsResponse> => {
+    // If no provider name is provided, try to get it from session storage
+    let finalProviderName = providerName;
+
+    if (!finalProviderName) {
+        const userData = sessionStorage.getItem('userData');
+        if (userData) {
+            try {
+                const user = JSON.parse(userData);
+                finalProviderName = user.name;
+            } catch (error) {
+                console.error('Failed to parse user data:', error);
+            }
+        }
+    }
+
+    // Fallback to default if still no provider name
+    if (!finalProviderName) {
+        finalProviderName = "BridgeCreek Patient Tracker";
+    }
+
+    console.log('Fetching patients with provider name:', finalProviderName);
+    const endpoint = `/provider/provider-patients?provider_name=${encodeURIComponent(finalProviderName)}`;
+    console.log('API endpoint:', endpoint);
+
+    const response = await apiCall(endpoint);
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to fetch patients');
+        console.error('API Error Response:', errorData);
+        throw new Error(errorData.detail || errorData.message || 'Failed to fetch patients');
     }
 
-    return response.json();
+    const data = await response.json();
+    console.log('API Success Response:', data);
+    return data;
+};
+
+// Function to fetch contact details
+export const getContactDetails = async (contactId: string): Promise<ContactDetailsResponse> => {
+    console.log('Fetching contact details for contact ID:', contactId);
+    const endpoint = `/provider/contact-data?contact_id=${encodeURIComponent(contactId)}`;
+    console.log('Contact details API endpoint:', endpoint);
+
+    const response = await apiCall(endpoint);
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Contact Details API Error Response:', errorData);
+        throw new Error(errorData.detail || errorData.message || 'Failed to fetch contact details');
+    }
+
+    const data = await response.json();
+    console.log('Contact Details API Success Response:', data);
+    return data;
 }; 

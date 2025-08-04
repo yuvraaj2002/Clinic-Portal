@@ -19,13 +19,6 @@ const AdminPage: React.FC = () => {
                         <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Admin Dashboard</h1>
                         <p className="text-gray-600 text-sm mt-1">Welcome, {user?.name} - Administrative Control Panel</p>
                     </div>
-                    <Button
-                        className="bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-primary-600 hover:to-secondary-600 text-white font-medium px-4 py-2 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
-                        onClick={handleLogout}
-                        startContent={<Icon icon="lucide:log-out" className="w-4 h-4" />}
-                    >
-                        Sign Out
-                    </Button>
                 </div>
 
                 {/* Admin Content */}
