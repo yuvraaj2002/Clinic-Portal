@@ -1,8 +1,9 @@
 // API utility functions for making authenticated requests
-const API_BASE_URL = import.meta.env.VITE_API_URL;
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 
 // Debug: Log API base URL
 console.log('API Base URL:', API_BASE_URL);
+console.log('Environment VITE_API_URL:', import.meta.env.VITE_API_URL);
 
 export const apiCall = async (
     endpoint: string,
@@ -280,5 +281,88 @@ export const updatePatientContactData = async (contactId: string, updatedData: a
 
     const data = await response.json();
     console.log('Update Contact Data API Success Response:', data);
+    return data;
+};
+
+// Function to handle forgot password request
+export const forgotPassword = async (email: string) => {
+    console.log('Forgot password called with email:', email);
+    console.log('API Base URL:', API_BASE_URL);
+
+    const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+    });
+
+    console.log('Forgot password response status:', response.status);
+    console.log('Forgot password response headers:', response.headers);
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Forgot password error response:', errorData);
+        throw new Error(errorData.detail || errorData.message || 'Failed to send password reset email');
+    }
+
+    const data = await response.json();
+    console.log('Forgot password API Success Response:', data);
+    return data;
+};
+
+// Function to validate reset token
+export const validateResetToken = async (token: string) => {
+    console.log('Validate reset token called with token:', token);
+    console.log('API Base URL:', API_BASE_URL);
+
+    const url = `${API_BASE_URL}/auth/validate-reset-token/${token}`;
+    console.log('Making validate token request to:', url);
+
+    const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+    });
+
+    console.log('Validate token response status:', response.status);
+    console.log('Validate token response headers:', response.headers);
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Validate token error response:', errorData);
+        throw new Error(errorData.detail || errorData.message || 'Failed to validate reset token');
+    }
+
+    const data = await response.json();
+    console.log('Validate reset token API Success Response:', data);
+    return data;
+};
+
+// Function to reset password with token
+export const resetPassword = async (token: string, newPassword: string) => {
+    console.log('Reset password called with token:', token);
+    console.log('API Base URL:', API_BASE_URL);
+
+    const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ token, new_password: newPassword }),
+    });
+
+    console.log('Reset password response status:', response.status);
+    console.log('Reset password response headers:', response.headers);
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Reset password error response:', errorData);
+        throw new Error(errorData.detail || errorData.message || 'Failed to reset password');
+    }
+
+    const data = await response.json();
+    console.log('Reset password API Success Response:', data);
     return data;
 }; 

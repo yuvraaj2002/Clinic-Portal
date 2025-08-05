@@ -4,6 +4,7 @@ import { Icon } from "@iconify/react";
 import { BrowserRouter as Router, Route, Switch } from 'react-router-dom';
 import Auth from './components/Auth';
 import SetPassword from './components/SetPassword';
+import ResetPassword from './components/ResetPassword';
 import AdminPage from './components/AdminPage';
 import { useAuth } from './contexts/AuthContext';
 import { getPatients, getContactDetails, Patient, ContactDetailsResponse } from './utils/api';
@@ -198,6 +199,10 @@ const App: React.FC = () => {
       <Switch>
         <Route path="/set-password">
           <SetPassword onAuthSuccess={handleAuthSuccess} />
+        </Route>
+
+        <Route path="/reset-password">
+          <ResetPassword onAuthSuccess={handleAuthSuccess} />
         </Route>
 
         <Route path="/">
