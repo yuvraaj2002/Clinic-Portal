@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardBody, Button } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import { useAuth } from '../contexts/AuthContext';
-import { getProviders, getPatients, getContactDetails, updatePatientContactData, ProvidersResponse, PatientsResponse, ContactDetailsResponse } from '../utils/api';
+import { getProviders, getPatients, getContactDetails, updateContactAdmin, ProvidersResponse, PatientsResponse, ContactDetailsResponse } from '../utils/api';
 
 const AdminPage: React.FC = () => {
     const { user } = useAuth();
@@ -10,8 +10,8 @@ const AdminPage: React.FC = () => {
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
     const [selectedProvider, setSelectedProvider] = React.useState<string>('');
-    const [patientsData, setPatientsData] = React.useState<PatientsResponse | null>(null);
-    const [loadingPatients, setLoadingPatients] = React.useState(false);
+
+
     const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
     const [adminPatients, setAdminPatients] = React.useState<PatientsResponse | null>(null);
     const [filteredAdminPatients, setFilteredAdminPatients] = React.useState<PatientsResponse | null>(null);
@@ -62,18 +62,16 @@ const AdminPage: React.FC = () => {
     // Function to fetch patients for selected provider
     const fetchPatientsForProvider = async (providerName: string) => {
         try {
-            setLoadingPatients(true);
             const data = await getPatients(providerName);
-            setPatientsData(data);
+            // Note: This function is not currently used in the admin flow
         } catch (err) {
             console.error('Failed to fetch patients for provider:', err);
-        } finally {
-            setLoadingPatients(false);
         }
     };
 
     // Handle provider selection
     const handleProviderChange = (providerName: string) => {
+        console.log('Selected provider name:', providerName);
         setSelectedProvider(providerName);
         setIsDropdownOpen(false);
         if (providerName) {
@@ -183,7 +181,39 @@ const AdminPage: React.FC = () => {
 
         try {
             setSavingChanges(true);
-            await updatePatientContactData(selectedAdminPatient.contact.id, editedPatientData);
+
+            // Prepare the update data according to the API specification
+            const updateData: any = {};
+
+            // Map basic fields
+            if (editedPatientData.fullNameLowerCase !== undefined) {
+                updateData.firstName = editedPatientData.fullNameLowerCase.split(' ')[0] || '';
+                updateData.lastName = editedPatientData.fullNameLowerCase.split(' ').slice(1).join(' ') || '';
+            }
+            if (editedPatientData.email !== undefined) {
+                updateData.email = editedPatientData.email;
+            }
+            if (editedPatientData.phone !== undefined) {
+                updateData.phone = editedPatientData.phone;
+            }
+            if (editedPatientData.country !== undefined) {
+                updateData.country = editedPatientData.country;
+            }
+
+            // Map custom fields
+            if (editedPatientData.customField && editedPatientData.customField.length > 0) {
+                updateData.customField = {};
+                editedPatientData.customField.forEach((field: any) => {
+                    if (field.value !== undefined) {
+                        updateData.customField[field.id] = field.value;
+                    }
+                });
+            }
+
+            console.log('Accumulated changes:', updateData);
+
+            // Make the API call to the admin endpoint
+            await updateContactAdmin(selectedAdminPatient.contact.id, updateData);
 
             // Update the local state with new data
             setAdminContactDetails(prev => ({
@@ -396,12 +426,12 @@ const AdminPage: React.FC = () => {
                                                     <div
                                                         key={provider.email}
                                                         className="px-4 py-3 hover:bg-primary-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors duration-200"
-                                                        onClick={() => handleProviderChange(provider.name)}
+                                                        onClick={() => handleProviderChange(provider.name || `${provider.first_name || ''} ${provider.last_name || ''}`.trim() || provider.email)}
                                                     >
                                                         <div className="flex items-center">
                                                             <Icon icon="lucide:user" className="w-4 h-4 text-primary-600 mr-3" />
                                                             <div>
-                                                                <div className="font-medium text-gray-900">{provider.name}</div>
+                                                                <div className="font-medium text-gray-900">{provider.name || `${provider.first_name || ''} ${provider.last_name || ''}`.trim() || provider.email}</div>
                                                                 <div className="text-sm text-gray-500">{provider.email}</div>
                                                             </div>
                                                             {provider.is_active && (

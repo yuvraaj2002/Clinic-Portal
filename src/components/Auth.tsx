@@ -49,6 +49,8 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
             try {
                 const userData = await getUserProfile();
                 console.log('User profile fetched:', userData);
+                console.log('Provider admin access:', userData.provider_admin_access);
+                console.log('Is provider:', userData.is_provider);
 
                 // Store user data in session storage
                 if (userData) {

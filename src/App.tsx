@@ -246,7 +246,7 @@ const App: React.FC = () => {
                             Welcome back, {user.name}!
                           </h3>
                           <p className="text-white/80 text-sm">
-                            {user.admin_access
+                            {user.is_provider && user.provider_admin_access
                               ? "You're now logged in to OHC Pharmacy Admin Dashboard"
                               : "You're now logged in to OHC Pharmacy Dashboard"
                             }
@@ -269,7 +269,7 @@ const App: React.FC = () => {
 
               <Switch>
                 <Route exact path="/">
-                  {user?.admin_access ? (
+                  {user?.is_provider && user?.provider_admin_access ? (
                     <AdminPage />
                   ) : (
                     /* Main Content Area */

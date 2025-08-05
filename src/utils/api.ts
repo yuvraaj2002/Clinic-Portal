@@ -155,7 +155,9 @@ export interface ContactData {
 }
 
 export interface Provider {
-    name: string;
+    name?: string;
+    first_name?: string;
+    last_name?: string;
     email: string;
     is_active: boolean;
     created_at: string;
@@ -259,7 +261,7 @@ export const getProviders = async (): Promise<ProvidersResponse> => {
     return data;
 };
 
-// Function to update patient contact data
+// Function to update patient contact data (legacy)
 export const updatePatientContactData = async (contactId: string, updatedData: any): Promise<any> => {
     console.log('Updating patient contact data for contact ID:', contactId);
     const endpoint = `/provider/update-contact-data`;
@@ -281,6 +283,32 @@ export const updatePatientContactData = async (contactId: string, updatedData: a
 
     const data = await response.json();
     console.log('Update Contact Data API Success Response:', data);
+    return data;
+};
+
+// Function to update contact data using admin endpoint
+export const updateContactAdmin = async (contactId: string, updateData: any): Promise<any> => {
+    console.log('Updating contact data for contact ID:', contactId);
+    console.log('Update data:', updateData);
+    const endpoint = `/provider/admin/update-contact`;
+    console.log('Update contact admin API endpoint:', endpoint);
+
+    const response = await apiCall(endpoint, {
+        method: 'PUT',
+        body: JSON.stringify({
+            contact_id: contactId,
+            update_data: updateData
+        })
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Update Contact Admin API Error Response:', errorData);
+        throw new Error(errorData.detail || errorData.message || 'Failed to update contact data');
+    }
+
+    const data = await response.json();
+    console.log('Update Contact Admin API Success Response:', data);
     return data;
 };
 

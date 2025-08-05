@@ -156,9 +156,35 @@ const SetPassword: React.FC<SetPasswordProps> = ({ onAuthSuccess }) => {
             sessionStorage.setItem('access_token', data.access_token);
             sessionStorage.setItem('token_type', data.token_type);
 
-            // Store provider info in session storage
-            if (data.provider) {
-                sessionStorage.setItem('userData', JSON.stringify(data.provider));
+            // Fetch provider details from /provider/me endpoint
+            try {
+                const providerResponse = await fetch(`${API_BASE_URL}/provider/me`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${data.access_token}`,
+                        'Content-Type': 'application/json',
+                    },
+                });
+
+                if (providerResponse.ok) {
+                    const providerData = await providerResponse.json();
+                    console.log('Provider data from /provider/me:', providerData);
+
+                    // Store provider info in session storage
+                    sessionStorage.setItem('userData', JSON.stringify(providerData));
+                } else {
+                    console.error('Failed to fetch provider data:', providerResponse.status);
+                    // Fallback to storing basic provider info
+                    if (data.provider) {
+                        sessionStorage.setItem('userData', JSON.stringify(data.provider));
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching provider data:', error);
+                // Fallback to storing basic provider info
+                if (data.provider) {
+                    sessionStorage.setItem('userData', JSON.stringify(data.provider));
+                }
             }
 
             console.log('Password set successfully');

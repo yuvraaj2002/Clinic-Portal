@@ -9,6 +9,11 @@ interface User {
     is_active: boolean;
     created_at: string;
     updated_at: string;
+    is_provider?: boolean;
+    provider_admin_access?: boolean;
+    username?: string;
+    first_name?: string;
+    last_name?: string;
 }
 
 interface AuthContextType {
@@ -43,6 +48,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             try {
                 if (checkAuth()) {
                     const userData = await getUserProfile();
+                    console.log('Provider data from /provider/me:', userData);
+
+                    // Update session storage with the latest provider data
+                    sessionStorage.setItem('userData', JSON.stringify(userData));
+
                     setUser(userData);
                     setIsAuthenticated(true);
                 }
