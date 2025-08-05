@@ -301,6 +301,14 @@ const AdminPage: React.FC = () => {
                                         const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
                                         const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
 
+                                        // Debug: Log the timestamp values
+                                        console.log('Provider:', provider.name);
+                                        console.log('Created at:', provider.created_at);
+                                        console.log('Parsed date:', createdDate);
+                                        console.log('Current time:', now);
+                                        console.log('Time difference (ms):', diffInMs);
+                                        console.log('Days:', diffInDays, 'Hours:', diffInHours, 'Minutes:', diffInMinutes);
+
                                         // Format the time ago string
                                         let timeAgo = '';
                                         if (diffInMs < 0) {
@@ -552,15 +560,6 @@ const AdminPage: React.FC = () => {
                                                     isLoading={savingChanges}
                                                 >
                                                     Save
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="light"
-                                                    className="bg-white text-primary-600 hover:bg-gray-100"
-                                                    startContent={<Icon icon="lucide:x" className="w-4 h-4" />}
-                                                    onClick={cancelEdit}
-                                                >
-                                                    Cancel
                                                 </Button>
                                             </div>
                                         )}
