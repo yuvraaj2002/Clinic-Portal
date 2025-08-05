@@ -129,18 +129,19 @@ const SetPassword: React.FC<SetPasswordProps> = ({ onAuthSuccess }) => {
 
         setIsLoading(true);
         try {
-            const response = await fetch(`${API_BASE_URL}/provider/signup`, {
+            const response = await fetch(`${API_BASE_URL}/auth/provider-signup`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
+                    username: userData?.username || email.split('@')[0],
+                    email: email,
+                    password: formData.newPassword,
+                    provider_admin_access: userData?.type === 'admin',
                     name: providerName || (userData?.first_name && userData?.last_name
                         ? `${userData.first_name} ${userData.last_name}`.trim()
                         : userData?.first_name || userData?.last_name || email.split('@')[0] || 'New Provider'),
-                    email: email,
-                    admin_access: userData?.type === 'admin',
-                    password: formData.newPassword,
                 }),
             });
 
