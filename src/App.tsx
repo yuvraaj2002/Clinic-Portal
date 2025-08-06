@@ -1,5 +1,5 @@
 import React from 'react';
-import { Navbar, NavbarBrand, NavbarContent, Tabs, Tab, Input, Button, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Pagination, Card, CardBody } from "@heroui/react";
+import { Navbar, NavbarBrand, NavbarContent, Input, Button, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Pagination, Card, CardBody } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import { BrowserRouter as Router, Route, Switch } from 'react-router-dom';
 import Auth from './components/Auth';
@@ -14,8 +14,7 @@ import { getPatients, getContactDetails, Patient, ContactDetailsResponse } from 
 // Patients will be loaded from API
 
 const App: React.FC = () => {
-  const { isAuthenticated, logout, user } = useAuth();
-  const [activeTab, setActiveTab] = React.useState("patients");
+  const { isAuthenticated, logout, user, loading } = useAuth();
   const [currentPage, setCurrentPage] = React.useState(1);
   const [showWelcomeCard, setShowWelcomeCard] = React.useState(false);
 
@@ -25,7 +24,6 @@ const App: React.FC = () => {
   const [patientsLoading, setPatientsLoading] = React.useState(true);
   const [patientsError, setPatientsError] = React.useState<string | null>(null);
   const [searchQuery, setSearchQuery] = React.useState('');
-  const [expandedRows, setExpandedRows] = React.useState<Set<string>>(new Set());
   const [contactDetails, setContactDetails] = React.useState<Record<string, ContactDetailsResponse>>({});
   const [loadingDetails, setLoadingDetails] = React.useState<Set<string>>(new Set());
   const [showDetailsModal, setShowDetailsModal] = React.useState(false);
@@ -38,7 +36,6 @@ const App: React.FC = () => {
 
 
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
-  const [sidebarType, setSidebarType] = React.useState<'patient' | 'medication'>('patient');
   const [formData, setFormData] = React.useState({
     firstName: '',
     lastName: '',
@@ -104,23 +101,6 @@ const App: React.FC = () => {
   const handleLogout = async () => {
     // Clear stored authentication data using the API utility
     await logout();
-  };
-
-  const openSidebar = (type: 'patient' | 'medication') => {
-    setSidebarType(type);
-    setIsSidebarOpen(true);
-    setFormData({
-      firstName: '',
-      lastName: '',
-      email: '',
-      phone: '',
-      dateOfBirth: '',
-      medicationName: '',
-      dosage: '',
-      frequency: '',
-      description: '',
-      stock: '',
-    });
   };
 
   const closeSidebar = () => {
@@ -194,6 +174,21 @@ const App: React.FC = () => {
 
 
 
+  // Show loading state while auth context is initializing
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-clinic-light to-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+            <Icon icon="lucide:loader-2" className="w-8 h-8 text-white animate-spin" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Loading...</h2>
+          <p className="text-gray-600 text-sm">Initializing application</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Router>
       <Switch>
@@ -202,7 +197,7 @@ const App: React.FC = () => {
         </Route>
 
         <Route path="/reset-password">
-          <ResetPassword onAuthSuccess={handleAuthSuccess} />
+          <ResetPassword />
         </Route>
 
         <Route path="/">
@@ -472,7 +467,7 @@ const App: React.FC = () => {
                             </div>
                             <div className="p-6">
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {contactDetails[selectedPatient.opportunity_id]?.contact_data?.customField?.map((field, index) => (
+                                {contactDetails[selectedPatient.opportunity_id]?.contact_data?.customField?.map((field) => (
                                   <div key={field.id} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                                     <span className="text-sm font-semibold text-gray-700 block mb-2">{field.name}:</span>
                                     <div className="text-gray-900">
@@ -537,7 +532,7 @@ const App: React.FC = () => {
                       {/* Header */}
                       <div className="flex justify-between items-center mb-6">
                         <h2 className="text-xl font-bold text-[gray-700]">
-                          {sidebarType === 'patient' ? 'Add New Patient' : 'Add New Medication'}
+                          Add New Patient
                         </h2>
                         <Button
                           isIconOnly
@@ -552,46 +547,13 @@ const App: React.FC = () => {
                       {/* Form */}
                       <form onSubmit={handleSubmit} className="flex-1 flex flex-col">
                         <div className="flex-1 space-y-4">
-                          {sidebarType === 'patient' ? (
-                            <>
-                              <div className="grid grid-cols-2 gap-4">
-                                <Input
-                                  label="First Name"
-                                  placeholder="John"
-                                  value={formData.firstName}
-                                  onChange={(e) => handleInputChange('firstName', e.target.value)}
-                                  required
-                                  classNames={{
-                                    label: "text-[gray-700] font-medium",
-                                    input: "text-[gray-700] placeholder-gray-400 focus:outline-none",
-                                    inputWrapper: "bg-white border border-gray-200 hover:border-[clinic-purple-600] focus-within:border-[clinic-purple-600] focus-within:ring-1 focus-within:ring-[clinic-purple-600]/20 focus:outline-none focus:ring-0",
-                                    innerWrapper: "focus:outline-none focus:ring-0",
-                                    mainWrapper: "focus:outline-none focus:ring-0",
-                                  }}
-                                  startContent={<Icon icon="lucide:user" className="text-[clinic-purple-600] w-4 h-4" />}
-                                />
-                                <Input
-                                  label="Last Name"
-                                  placeholder="Doe"
-                                  value={formData.lastName}
-                                  onChange={(e) => handleInputChange('lastName', e.target.value)}
-                                  required
-                                  classNames={{
-                                    label: "text-[gray-700] font-medium",
-                                    input: "text-[gray-700] placeholder-gray-400 focus:outline-none",
-                                    inputWrapper: "bg-white border border-gray-200 hover:border-[clinic-purple-600] focus-within:border-[clinic-purple-600] focus-within:ring-1 focus-within:ring-[clinic-purple-600]/20 focus:outline-none focus:ring-0",
-                                    innerWrapper: "focus:outline-none focus:ring-0",
-                                    mainWrapper: "focus:outline-none focus:ring-0",
-                                  }}
-                                  startContent={<Icon icon="lucide:user" className="text-[clinic-purple-600] w-4 h-4" />}
-                                />
-                              </div>
+                          <>
+                            <div className="grid grid-cols-2 gap-4">
                               <Input
-                                label="Email Address"
-                                type="email"
-                                placeholder="john.doe@example.com"
-                                value={formData.email}
-                                onChange={(e) => handleInputChange('email', e.target.value)}
+                                label="First Name"
+                                placeholder="John"
+                                value={formData.firstName}
+                                onChange={(e) => handleInputChange('firstName', e.target.value)}
                                 required
                                 classNames={{
                                   label: "text-[gray-700] font-medium",
@@ -600,13 +562,13 @@ const App: React.FC = () => {
                                   innerWrapper: "focus:outline-none focus:ring-0",
                                   mainWrapper: "focus:outline-none focus:ring-0",
                                 }}
-                                startContent={<Icon icon="lucide:mail" className="text-[clinic-purple-600] w-4 h-4" />}
+                                startContent={<Icon icon="lucide:user" className="text-[clinic-purple-600] w-4 h-4" />}
                               />
                               <Input
-                                label="Phone Number"
-                                placeholder="123-456-7890"
-                                value={formData.phone}
-                                onChange={(e) => handleInputChange('phone', e.target.value)}
+                                label="Last Name"
+                                placeholder="Doe"
+                                value={formData.lastName}
+                                onChange={(e) => handleInputChange('lastName', e.target.value)}
                                 required
                                 classNames={{
                                   label: "text-[gray-700] font-medium",
@@ -615,105 +577,56 @@ const App: React.FC = () => {
                                   innerWrapper: "focus:outline-none focus:ring-0",
                                   mainWrapper: "focus:outline-none focus:ring-0",
                                 }}
-                                startContent={<Icon icon="lucide:phone" className="text-[clinic-purple-600] w-4 h-4" />}
+                                startContent={<Icon icon="lucide:user" className="text-[clinic-purple-600] w-4 h-4" />}
                               />
-                              <Input
-                                label="Date of Birth"
-                                type="date"
-                                value={formData.dateOfBirth}
-                                onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
-                                required
-                                classNames={{
-                                  label: "text-[gray-700] font-medium",
-                                  input: "text-[gray-700] placeholder-gray-400 focus:outline-none",
-                                  inputWrapper: "bg-white border border-gray-200 hover:border-[clinic-purple-600] focus-within:border-[clinic-purple-600] focus-within:ring-1 focus-within:ring-[clinic-purple-600]/20 focus:outline-none focus:ring-0",
-                                  innerWrapper: "focus:outline-none focus:ring-0",
-                                  mainWrapper: "focus:outline-none focus:ring-0",
-                                }}
-                                startContent={<Icon icon="lucide:calendar" className="text-[clinic-purple-600] w-4 h-4" />}
-                              />
-                            </>
-                          ) : (
-                            <>
-                              <Input
-                                label="Medication Name"
-                                placeholder="Lisinopril"
-                                value={formData.medicationName}
-                                onChange={(e) => handleInputChange('medicationName', e.target.value)}
-                                required
-                                classNames={{
-                                  label: "text-[gray-700] font-medium",
-                                  input: "text-[gray-700] placeholder-gray-400 focus:outline-none",
-                                  inputWrapper: "bg-white border border-gray-200 hover:border-[clinic-purple-600] focus-within:border-[clinic-purple-600] focus-within:ring-1 focus-within:ring-[clinic-purple-600]/20 focus:outline-none focus:ring-0",
-                                  innerWrapper: "focus:outline-none focus:ring-0",
-                                  mainWrapper: "focus:outline-none focus:ring-0",
-                                }}
-                                startContent={<Icon icon="lucide:pill" className="text-[clinic-purple-600] w-4 h-4" />}
-                              />
-                              <div className="grid grid-cols-2 gap-4">
-                                <Input
-                                  label="Dosage"
-                                  placeholder="10 MG"
-                                  value={formData.dosage}
-                                  onChange={(e) => handleInputChange('dosage', e.target.value)}
-                                  required
-                                  classNames={{
-                                    label: "text-[gray-700] font-medium",
-                                    input: "text-[gray-700] placeholder-gray-400 focus:outline-none",
-                                    inputWrapper: "bg-white border border-gray-200 hover:border-[clinic-purple-600] focus-within:border-[clinic-purple-600] focus-within:ring-1 focus-within:ring-[clinic-purple-600]/20 focus:outline-none focus:ring-0",
-                                    innerWrapper: "focus:outline-none focus:ring-0",
-                                    mainWrapper: "focus:outline-none focus:ring-0",
-                                  }}
-                                  startContent={<Icon icon="lucide:activity" className="text-[clinic-purple-600] w-4 h-4" />}
-                                />
-                                <Input
-                                  label="Frequency"
-                                  placeholder="ONCE A DAY"
-                                  value={formData.frequency}
-                                  onChange={(e) => handleInputChange('frequency', e.target.value)}
-                                  required
-                                  classNames={{
-                                    label: "text-[gray-700] font-medium",
-                                    input: "text-[gray-700] placeholder-gray-400 focus:outline-none",
-                                    inputWrapper: "bg-white border border-gray-200 hover:border-[clinic-purple-600] focus-within:border-[clinic-purple-600] focus-within:ring-1 focus-within:ring-[clinic-purple-600]/20 focus:outline-none focus:ring-0",
-                                    innerWrapper: "focus:outline-none focus:ring-0",
-                                    mainWrapper: "focus:outline-none focus:ring-0",
-                                  }}
-                                  startContent={<Icon icon="lucide:clock" className="text-[clinic-purple-600] w-4 h-4" />}
-                                />
-                              </div>
-                              <Input
-                                label="Stock Level"
-                                type="number"
-                                placeholder="150"
-                                value={formData.stock}
-                                onChange={(e) => handleInputChange('stock', e.target.value)}
-                                required
-                                classNames={{
-                                  label: "text-[gray-700] font-medium",
-                                  input: "text-[gray-700] placeholder-gray-400 focus:outline-none",
-                                  inputWrapper: "bg-white border border-gray-200 hover:border-[clinic-purple-600] focus-within:border-[clinic-purple-600] focus-within:ring-1 focus-within:ring-[clinic-purple-600]/20 focus:outline-none focus:ring-0",
-                                  innerWrapper: "focus:outline-none focus:ring-0",
-                                  mainWrapper: "focus:outline-none focus:ring-0",
-                                }}
-                                startContent={<Icon icon="lucide:package" className="text-[clinic-purple-600] w-4 h-4" />}
-                              />
-                              <Input
-                                label="Description"
-                                placeholder="Used to treat high blood pressure and heart failure"
-                                value={formData.description}
-                                onChange={(e) => handleInputChange('description', e.target.value)}
-                                classNames={{
-                                  label: "text-[gray-700] font-medium",
-                                  input: "text-[gray-700] placeholder-gray-400 focus:outline-none",
-                                  inputWrapper: "bg-white border border-gray-200 hover:border-[clinic-purple-600] focus-within:border-[clinic-purple-600] focus-within:ring-1 focus-within:ring-[clinic-purple-600]/20 focus:outline-none focus:ring-0",
-                                  innerWrapper: "focus:outline-none focus:ring-0",
-                                  mainWrapper: "focus:outline-none focus:ring-0",
-                                }}
-                                startContent={<Icon icon="lucide:file-text" className="text-[clinic-purple-600] w-4 h-4" />}
-                              />
-                            </>
-                          )}
+                            </div>
+                            <Input
+                              label="Email Address"
+                              type="email"
+                              placeholder="john.doe@example.com"
+                              value={formData.email}
+                              onChange={(e) => handleInputChange('email', e.target.value)}
+                              required
+                              classNames={{
+                                label: "text-[gray-700] font-medium",
+                                input: "text-[gray-700] placeholder-gray-400 focus:outline-none",
+                                inputWrapper: "bg-white border border-gray-200 hover:border-[clinic-purple-600] focus-within:border-[clinic-purple-600] focus-within:ring-1 focus-within:ring-[clinic-purple-600]/20 focus:outline-none focus:ring-0",
+                                innerWrapper: "focus:outline-none focus:ring-0",
+                                mainWrapper: "focus:outline-none focus:ring-0",
+                              }}
+                              startContent={<Icon icon="lucide:mail" className="text-[clinic-purple-600] w-4 h-4" />}
+                            />
+                            <Input
+                              label="Phone Number"
+                              placeholder="123-456-7890"
+                              value={formData.phone}
+                              onChange={(e) => handleInputChange('phone', e.target.value)}
+                              required
+                              classNames={{
+                                label: "text-[gray-700] font-medium",
+                                input: "text-[gray-700] placeholder-gray-400 focus:outline-none",
+                                inputWrapper: "bg-white border border-gray-200 hover:border-[clinic-purple-600] focus-within:border-[clinic-purple-600] focus-within:ring-1 focus-within:ring-[clinic-purple-600]/20 focus:outline-none focus:ring-0",
+                                innerWrapper: "focus:outline-none focus:ring-0",
+                                mainWrapper: "focus:outline-none focus:ring-0",
+                              }}
+                              startContent={<Icon icon="lucide:phone" className="text-[clinic-purple-600] w-4 h-4" />}
+                            />
+                            <Input
+                              label="Date of Birth"
+                              type="date"
+                              value={formData.dateOfBirth}
+                              onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
+                              required
+                              classNames={{
+                                label: "text-[gray-700] font-medium",
+                                input: "text-[gray-700] placeholder-gray-400 focus:outline-none",
+                                inputWrapper: "bg-white border border-gray-200 hover:border-[clinic-purple-600] focus-within:border-[clinic-purple-600] focus-within:ring-1 focus-within:ring-[clinic-purple-600]/20 focus:outline-none focus:ring-0",
+                                innerWrapper: "focus:outline-none focus:ring-0",
+                                mainWrapper: "focus:outline-none focus:ring-0",
+                              }}
+                              startContent={<Icon icon="lucide:calendar" className="text-[clinic-purple-600] w-4 h-4" />}
+                            />
+                          </>
                         </div>
 
                         {/* Footer */}
@@ -730,7 +643,7 @@ const App: React.FC = () => {
                               type="submit"
                               className="flex-1 bg-[clinic-purple-600] hover:bg-[clinic-purple-700] text-white"
                             >
-                              {sidebarType === 'patient' ? 'Add Patient' : 'Add Medication'}
+                              Add Patient
                             </Button>
                           </div>
                         </div>

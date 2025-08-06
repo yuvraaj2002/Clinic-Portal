@@ -46,7 +46,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     useEffect(() => {
         const checkAuthentication = async () => {
             try {
+                console.log('Checking authentication...');
                 if (checkAuth()) {
+                    console.log('User is authenticated, fetching profile...');
                     const userData = await getUserProfile();
                     console.log('Provider data from /provider/me:', userData);
 
@@ -55,11 +57,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
                     setUser(userData);
                     setIsAuthenticated(true);
+                } else {
+                    console.log('User is not authenticated');
                 }
             } catch (error) {
                 console.error('Auth check failed:', error);
                 // Clear any invalid tokens
-                await apiLogout();
+                try {
+                    await apiLogout();
+                } catch (logoutError) {
+                    console.error('Logout during auth check failed:', logoutError);
+                }
+                // Ensure we're in a clean state
+                setUser(null);
+                setIsAuthenticated(false);
             } finally {
                 setLoading(false);
             }

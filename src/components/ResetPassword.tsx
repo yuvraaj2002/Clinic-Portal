@@ -5,10 +5,10 @@ import { validateResetToken, resetPassword } from '../utils/api';
 import { useHistory, useLocation } from 'react-router-dom';
 
 interface ResetPasswordProps {
-    onAuthSuccess: () => void;
+    // Removed unused onAuthSuccess parameter
 }
 
-const ResetPassword: React.FC<ResetPasswordProps> = ({ onAuthSuccess }) => {
+const ResetPassword: React.FC<ResetPasswordProps> = () => {
     const history = useHistory();
     const location = useLocation();
     const [token, setToken] = useState<string>('');

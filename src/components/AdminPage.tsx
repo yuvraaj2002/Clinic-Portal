@@ -2,11 +2,11 @@ import React from 'react';
 import { Card, CardBody, Button } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import { useAuth } from '../contexts/AuthContext';
-import { getProviders, getPatients, getContactDetails, updateContactAdmin, ProvidersResponse, PatientsResponse, ContactDetailsResponse } from '../utils/api';
+import { getAllProviders, getActiveNonAdminProviders, getPatients, getContactDetails, updateContactAdmin, PatientsResponse, ContactDetailsResponse } from '../utils/api';
 
 const AdminPage: React.FC = () => {
     const { user } = useAuth();
-    const [providersData, setProvidersData] = React.useState<ProvidersResponse | null>(null);
+    const [allProvidersData, setAllProvidersData] = React.useState<any>(null);
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
     const [selectedProvider, setSelectedProvider] = React.useState<string>('');
@@ -30,8 +30,17 @@ const AdminPage: React.FC = () => {
             try {
                 setLoading(true);
                 setError(null);
-                const data = await getProviders();
-                setProvidersData(data);
+
+                // Check if current user is admin and use appropriate endpoint
+                if (user?.admin_access) {
+                    console.log('Current user is admin, fetching active non-admin providers');
+                    const data = await getActiveNonAdminProviders();
+                    setAllProvidersData(data); // Store providers for dropdown
+                } else {
+                    console.log('Current user is not admin, fetching all providers');
+                    const data = await getAllProviders();
+                    setAllProvidersData(data); // Store all providers for dropdown
+                }
             } catch (err) {
                 console.error('Failed to fetch providers:', err);
                 setError(err instanceof Error ? err.message : 'Failed to fetch providers');
@@ -42,7 +51,7 @@ const AdminPage: React.FC = () => {
 
         fetchProviders();
         fetchAdminPatients(); // Fetch all patients for admin
-    }, []);
+    }, [user]);
 
     // Close dropdown when clicking outside
     React.useEffect(() => {
@@ -58,16 +67,6 @@ const AdminPage: React.FC = () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
     }, []);
-
-    // Function to fetch patients for selected provider
-    const fetchPatientsForProvider = async (providerName: string) => {
-        try {
-            const data = await getPatients(providerName);
-            // Note: This function is not currently used in the admin flow
-        } catch (err) {
-            console.error('Failed to fetch patients for provider:', err);
-        }
-    };
 
     // Handle provider selection
     const handleProviderChange = (providerName: string) => {
@@ -234,12 +233,6 @@ const AdminPage: React.FC = () => {
         }
     };
 
-    // Cancel edit mode
-    const cancelEdit = () => {
-        setIsEditMode(false);
-        setEditedPatientData(null);
-    };
-
     return (
         <div className="min-h-screen bg-gradient-to-br from-background to-white font-sans">
             <div className="container mx-auto px-6 py-8 max-w-7xl">
@@ -278,14 +271,43 @@ const AdminPage: React.FC = () => {
                                     </div>
                                 ) : (
                                     <>
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-gray-600">Total Providers</span>
-                                            <span className="font-semibold text-primary-600">{providersData?.count || 0}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-gray-600">Active Providers</span>
-                                            <span className="font-semibold text-primary-600">{providersData?.active_providers_count || 0}</span>
-                                        </div>
+                                        {user?.admin_access ? (
+                                            // Admin user - show active non-admin providers stats
+                                            <>
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-gray-600">Active Non-Admin Providers</span>
+                                                    <span className="font-semibold text-primary-600">{allProvidersData?.statistics?.total_active_non_admin_providers || 0}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-gray-600">Description</span>
+                                                    <span className="font-semibold text-primary-600 text-xs">Active Non-Admin Only</span>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            // Non-admin user - show all providers stats
+                                            <>
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-gray-600">Total Providers</span>
+                                                    <span className="font-semibold text-primary-600">{allProvidersData?.statistics?.total_providers || 0}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-gray-600">Active Providers</span>
+                                                    <span className="font-semibold text-primary-600">{allProvidersData?.statistics?.active_providers || 0}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-gray-600">Inactive Providers</span>
+                                                    <span className="font-semibold text-primary-600">{allProvidersData?.statistics?.inactive_providers || 0}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-gray-600">Admin Providers</span>
+                                                    <span className="font-semibold text-primary-600">{allProvidersData?.statistics?.admin_providers || 0}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-gray-600">Non-Admin Providers</span>
+                                                    <span className="font-semibold text-primary-600">{allProvidersData?.statistics?.non_admin_providers || 0}</span>
+                                                </div>
+                                            </>
+                                        )}
                                     </>
                                 )}
                             </div>
@@ -317,8 +339,8 @@ const AdminPage: React.FC = () => {
                                         <Icon icon="lucide:alert-circle" className="w-4 h-4 mr-2" />
                                         <span className="text-sm">Error loading data</span>
                                     </div>
-                                ) : providersData?.providers && providersData.providers.length > 0 ? (
-                                    providersData.providers.slice(0, 3).map((provider, index) => {
+                                ) : allProvidersData?.providers && allProvidersData.providers.length > 0 ? (
+                                    allProvidersData.providers.slice(0, 3).map((provider: any, index: number) => {
                                         // Parse the created_at timestamp
                                         const createdDate = new Date(provider.created_at);
                                         const now = new Date();
@@ -357,7 +379,7 @@ const AdminPage: React.FC = () => {
                                         return (
                                             <div key={provider.email} className="flex items-center space-x-3 text-sm">
                                                 <div className={`w-2 h-2 rounded-full ${index === 0 ? 'bg-green-500' : index === 1 ? 'bg-blue-500' : 'bg-yellow-500'}`}></div>
-                                                <span className="text-gray-600">{provider.name} registered</span>
+                                                <span className="text-gray-600">{provider.username || provider.email} registered</span>
                                                 <span className="text-gray-400 text-xs">{timeAgo}</span>
                                             </div>
                                         );
@@ -395,11 +417,11 @@ const AdminPage: React.FC = () => {
                                 <Icon icon="lucide:alert-circle" className="w-5 h-5 mr-2" />
                                 <span>Error loading providers</span>
                             </div>
-                        ) : providersData?.providers && providersData.providers.length > 0 ? (
+                        ) : allProvidersData?.providers && allProvidersData.providers.length > 0 ? (
                             <div className="space-y-6">
                                 <div>
                                     <label className="block text-sm font-semibold text-gray-700 mb-3">
-                                        Select Provider ({providersData.providers.length} total)
+                                        Select Provider ({allProvidersData.providers.length} total)
                                     </label>
                                     <div className="relative dropdown-container">
                                         {/* Custom Dropdown */}
@@ -422,16 +444,16 @@ const AdminPage: React.FC = () => {
                                         {/* Dropdown Options */}
                                         {isDropdownOpen && (
                                             <div className="absolute z-10 w-full mt-1 bg-white border border-primary-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                                                {providersData.providers.map((provider) => (
+                                                {allProvidersData.providers.filter((provider: any) => provider.is_provider === true).map((provider: any) => (
                                                     <div
                                                         key={provider.email}
                                                         className="px-4 py-3 hover:bg-primary-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors duration-200"
-                                                        onClick={() => handleProviderChange(provider.name || `${provider.first_name || ''} ${provider.last_name || ''}`.trim() || provider.email)}
+                                                        onClick={() => handleProviderChange(provider.username || provider.email)}
                                                     >
                                                         <div className="flex items-center">
                                                             <Icon icon="lucide:user" className="w-4 h-4 text-primary-600 mr-3" />
                                                             <div>
-                                                                <div className="font-medium text-gray-900">{provider.name || `${provider.first_name || ''} ${provider.last_name || ''}`.trim() || provider.email}</div>
+                                                                <div className="font-medium text-gray-900">{provider.username || provider.email}</div>
                                                                 <div className="text-sm text-gray-500">{provider.email}</div>
                                                             </div>
                                                             {provider.is_active && (

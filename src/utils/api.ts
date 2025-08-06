@@ -31,7 +31,7 @@ export const apiCall = async (
 };
 
 export const login = async (email: string, password: string) => {
-    const response = await fetch(`${API_BASE_URL}/auth/provider-login`, {
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -258,6 +258,44 @@ export const getProviders = async (): Promise<ProvidersResponse> => {
 
     const data = await response.json();
     console.log('Providers API Success Response:', data);
+    return data;
+};
+
+// Function to fetch all providers (admin only)
+export const getAllProviders = async (): Promise<any> => {
+    console.log('Fetching all providers for admin user');
+    const endpoint = '/provider/all-providers';
+    console.log('All providers API endpoint:', endpoint);
+
+    const response = await apiCall(endpoint);
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('All Providers API Error Response:', errorData);
+        throw new Error(errorData.detail || errorData.message || 'Failed to fetch all providers');
+    }
+
+    const data = await response.json();
+    console.log('All Providers API Success Response:', data);
+    return data;
+};
+
+// Function to fetch active non-admin providers (admin only)
+export const getActiveNonAdminProviders = async (): Promise<any> => {
+    console.log('Fetching active non-admin providers for admin user');
+    const endpoint = '/provider/active-non-admin-providers';
+    console.log('Active non-admin providers API endpoint:', endpoint);
+
+    const response = await apiCall(endpoint);
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Active Non-Admin Providers API Error Response:', errorData);
+        throw new Error(errorData.detail || errorData.message || 'Failed to fetch active non-admin providers');
+    }
+
+    const data = await response.json();
+    console.log('Active Non-Admin Providers API Success Response:', data);
     return data;
 };
 
