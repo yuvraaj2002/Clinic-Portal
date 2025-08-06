@@ -138,7 +138,7 @@ const SetPassword: React.FC<SetPasswordProps> = ({ onAuthSuccess }) => {
                     username: userData?.username || email.split('@')[0],
                     email: email,
                     password: formData.newPassword,
-                    provider_admin_access: userData?.type === 'admin',
+                    admin_access: userData?.type === 'admin',
                     name: providerName || (userData?.first_name && userData?.last_name
                         ? `${userData.first_name} ${userData.last_name}`.trim()
                         : userData?.first_name || userData?.last_name || email.split('@')[0] || 'New Provider'),
@@ -271,21 +271,7 @@ const SetPassword: React.FC<SetPasswordProps> = ({ onAuthSuccess }) => {
                                 <p className="text-xs text-gray-500">This username was extracted from your invite link</p>
                             </div>
 
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-700">Account Type</label>
-                                <Input
-                                    value={userData?.type || ''}
-                                    disabled
-                                    classNames={{
-                                        input: "text-gray-800 bg-gray-50 cursor-not-allowed",
-                                        inputWrapper: "bg-gray-50 border border-gray-200",
-                                        innerWrapper: "cursor-not-allowed",
-                                        mainWrapper: "cursor-not-allowed",
-                                    }}
-                                    startContent={<Icon icon="lucide:shield" className="text-primary-600 w-4 h-4" />}
-                                />
-                                <p className="text-xs text-gray-500">This account type was extracted from your invite link</p>
-                            </div>
+
 
                             <Input
                                 label="New Password"

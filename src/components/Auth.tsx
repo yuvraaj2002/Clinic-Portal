@@ -49,16 +49,24 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
             try {
                 const userData = await getUserProfile();
                 console.log('User profile fetched:', userData);
-                console.log('Provider admin access:', userData.provider_admin_access);
+                console.log('Admin access:', userData.admin_access);
+                console.log('Is admin:', userData.is_admin);
                 console.log('Is provider:', userData.is_provider);
 
+                // Map the API response to match our User interface
+                const mappedUserData = {
+                    ...userData,
+                    admin_access: userData.is_admin || userData.admin_access || false
+                };
+                console.log('Mapped user data for login:', mappedUserData);
+
                 // Store user data in session storage
-                if (userData) {
-                    sessionStorage.setItem('userData', JSON.stringify(userData));
+                if (mappedUserData) {
+                    sessionStorage.setItem('userData', JSON.stringify(mappedUserData));
                 }
 
                 // Update authentication context
-                authLogin(userData);
+                authLogin(mappedUserData);
             } catch (profileError) {
                 console.warn('Failed to fetch user profile:', profileError);
                 // Don't fail the login if profile fetch fails
