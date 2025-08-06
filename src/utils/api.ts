@@ -31,7 +31,7 @@ export const apiCall = async (
 };
 
 export const login = async (email: string, password: string) => {
-    const response = await fetch(`${API_BASE_URL}/provider/login`, {
+    const response = await fetch(`${API_BASE_URL}/auth/provider-login`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
