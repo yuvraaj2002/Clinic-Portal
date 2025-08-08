@@ -36,7 +36,7 @@ export const login = async (email: string, password: string) => {
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, portal: true }),
     });
 
     if (!response.ok) {
@@ -65,6 +65,7 @@ export const signup = async (name: string, email: string, password: string, admi
             email,
             password,
             admin_access,
+            portal: true,
         }),
     });
 
@@ -114,7 +115,7 @@ export const getUserProfile = async () => {
 export const updateUserProfile = async (updateData: { email?: string; name?: string }) => {
     const response = await apiCall('/auth/me', {
         method: 'PUT',
-        body: JSON.stringify(updateData)
+        body: JSON.stringify({ ...updateData, portal: true })
     });
 
     if (!response.ok) {
@@ -374,7 +375,7 @@ export const forgotPassword = async (email: string) => {
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, portal: true }),
     });
 
     console.log('Forgot password response status:', response.status);
@@ -430,7 +431,7 @@ export const resetPassword = async (token: string, newPassword: string) => {
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ token, new_password: newPassword }),
+        body: JSON.stringify({ token, new_password: newPassword, portal: true }),
     });
 
     console.log('Reset password response status:', response.status);

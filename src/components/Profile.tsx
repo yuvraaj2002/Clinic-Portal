@@ -3,9 +3,11 @@ import { Card, CardBody, Input, Button } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import { useAuth } from '../contexts/AuthContext';
 import { updateUserProfile } from '../utils/api';
+import { useHistory } from 'react-router-dom';
 
 const Profile: React.FC = () => {
   const { user } = useAuth();
+  const history = useHistory();
   const [isEditing, setIsEditing] = useState(false);
   const [email, setEmail] = useState(user?.email || '');
   const [isLoading, setIsLoading] = useState(false);
@@ -40,16 +42,30 @@ const Profile: React.FC = () => {
     setSuccess(null);
   };
 
+  const handleBackToMain = () => {
+    history.push('/');
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-white font-sans">
       {/* Header */}
       <div className="bg-white border-b border-gray-100 shadow-sm">
         <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center">
-              <Icon icon="lucide:user" className="w-4 h-4 text-white" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center">
+                <Icon icon="lucide:user" className="w-4 h-4 text-white" />
+              </div>
+              <h1 className="font-bold text-foreground text-xl tracking-tight">Profile</h1>
             </div>
-            <h1 className="font-bold text-foreground text-xl tracking-tight">Profile</h1>
+            <Button
+              variant="light"
+              className="text-gray-600 hover:text-gray-800 hover:bg-gray-100"
+              startContent={<Icon icon="lucide:arrow-left" className="w-4 h-4" />}
+              onClick={handleBackToMain}
+            >
+              Back to Dashboard
+            </Button>
           </div>
         </div>
       </div>
