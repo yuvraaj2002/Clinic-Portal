@@ -111,6 +111,20 @@ export const getUserProfile = async () => {
     return response.json();
 };
 
+export const updateUserProfile = async (updateData: { email?: string; name?: string }) => {
+    const response = await apiCall('/auth/me', {
+        method: 'PUT',
+        body: JSON.stringify(updateData)
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Failed to update user profile');
+    }
+
+    return response.json();
+};
+
 export const isAuthenticated = (): boolean => {
     return !!sessionStorage.getItem('access_token');
 };
