@@ -7,6 +7,7 @@ interface User {
     email: string;
     admin_access: boolean;
     is_admin?: boolean; // API returns this field
+    provider_admin?: boolean; // API returns this field
     is_active: boolean;
     created_at: string;
     updated_at: string;
@@ -58,7 +59,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                     // Map the API response to match our User interface
                     const mappedUserData = {
                         ...userData,
-                        admin_access: userData.is_admin || userData.admin_access || false
+                        admin_access: userData.is_admin || userData.admin_access || false,
+                        provider_admin: userData.provider_admin || false
                     };
                     console.log('Mapped user data:', mappedUserData);
 

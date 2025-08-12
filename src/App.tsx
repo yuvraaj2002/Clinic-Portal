@@ -9,12 +9,8 @@ import AdminPage from './components/AdminPage';
 import { useAuth } from './contexts/AuthContext';
 import { getPatients, getContactDetails, Patient, ContactDetailsResponse } from './utils/api';
 
-
-
-// Patients will be loaded from API
-
 const App: React.FC = () => {
-  const { isAuthenticated, logout, user, loading } = useAuth();
+  const { isAuthenticated, user, loading, logout } = useAuth();
   const [currentPage, setCurrentPage] = React.useState(1);
   const [showWelcomeCard, setShowWelcomeCard] = React.useState(false);
 
@@ -33,7 +29,6 @@ const App: React.FC = () => {
   React.useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery]);
-
 
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
   const [formData, setFormData] = React.useState({
@@ -103,6 +98,8 @@ const App: React.FC = () => {
     await logout();
   };
 
+
+
   const closeSidebar = () => {
     setIsSidebarOpen(false);
   };
@@ -166,14 +163,6 @@ const App: React.FC = () => {
   const startIndex = (currentPage - 1) * patientsPerPage;
   const currentPatients = filteredPatients.slice(startIndex, startIndex + patientsPerPage);
 
-
-
-
-
-
-
-
-
   // Show loading state while auth context is initializing
   if (loading) {
     return (
@@ -200,6 +189,8 @@ const App: React.FC = () => {
           <ResetPassword />
         </Route>
 
+
+
         <Route path="/">
           {!isAuthenticated ? (
             <Auth onAuthSuccess={handleAuthSuccess} />
@@ -224,7 +215,6 @@ const App: React.FC = () => {
                     Sign Out
                   </Button>
                 </NavbarContent>
-
               </Navbar>
 
               {/* Welcome Card */}
@@ -241,7 +231,7 @@ const App: React.FC = () => {
                             Welcome back, {user.name}!
                           </h3>
                           <p className="text-white/80 text-sm">
-                            {user.admin_access
+                            {user.provider_admin
                               ? "You're now logged in to OHC Pharmacy Admin Dashboard"
                               : "You're now logged in to OHC Pharmacy Dashboard"
                             }
@@ -264,7 +254,7 @@ const App: React.FC = () => {
 
               <Switch>
                 <Route exact path="/">
-                  {user?.admin_access ? (
+                  {user?.provider_admin ? (
                     <AdminPage />
                   ) : (
                     /* Main Content Area */
@@ -274,7 +264,7 @@ const App: React.FC = () => {
                         <div>
                           <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Patients</h2>
                           <p className="text-gray-600 text-sm mt-1">
-                            {user?.admin_access
+                            {user?.provider_admin
                               ? "Manage and view patient records"
                               : `Your patients (${totalPatients} total)`
                             }
@@ -314,14 +304,12 @@ const App: React.FC = () => {
                         >
                           <TableHeader>
                             <TableColumn className="font-semibold">FULL NAME</TableColumn>
-                            <TableColumn className="font-semibold">PHONE</TableColumn>
-                            <TableColumn className="font-semibold">EMAIL</TableColumn>
                             <TableColumn className="font-semibold">DETAILS</TableColumn>
                           </TableHeader>
                           <TableBody>
                             {patientsLoading ? (
                               <TableRow>
-                                <TableCell colSpan={4} className="text-center py-8">
+                                <TableCell colSpan={2} className="text-center py-8">
                                   <div className="flex items-center justify-center">
                                     <Icon icon="lucide:loader-2" className="w-6 h-6 animate-spin text-primary-600 mr-2" />
                                     <span className="text-gray-600">Loading patients...</span>
@@ -330,7 +318,7 @@ const App: React.FC = () => {
                               </TableRow>
                             ) : patientsError ? (
                               <TableRow>
-                                <TableCell colSpan={4} className="text-center py-8">
+                                <TableCell colSpan={2} className="text-center py-8">
                                   <div className="flex items-center justify-center text-red-600">
                                     <Icon icon="lucide:alert-circle" className="w-6 h-6 mr-2" />
                                     <span>{patientsError}</span>
@@ -339,7 +327,7 @@ const App: React.FC = () => {
                               </TableRow>
                             ) : currentPatients.length === 0 ? (
                               <TableRow>
-                                <TableCell colSpan={4} className="text-center py-8">
+                                <TableCell colSpan={2} className="text-center py-8">
                                   <div className="flex items-center justify-center text-gray-600">
                                     <Icon icon="lucide:users" className="w-6 h-6 mr-2" />
                                     <span>No patients found</span>
@@ -350,8 +338,6 @@ const App: React.FC = () => {
                               currentPatients.map((patient) => (
                                 <TableRow key={patient.opportunity_id} className="hover:bg-primary-50 transition-colors duration-200">
                                   <TableCell className="font-medium">{patient.contact.name}</TableCell>
-                                  <TableCell className="text-gray-600">{patient.contact.phone || 'N/A'}</TableCell>
-                                  <TableCell className="text-gray-600">{patient.contact.email || 'N/A'}</TableCell>
                                   <TableCell>
                                     <Button
                                       size="sm"
@@ -392,7 +378,6 @@ const App: React.FC = () => {
                     </main>
                   )}
                 </Route>
-
               </Switch>
 
               {/* Patient Details Modal */}
@@ -702,7 +687,7 @@ const App: React.FC = () => {
           )}
         </Route>
       </Switch>
-    </Router >
+    </Router>
   );
 };
 

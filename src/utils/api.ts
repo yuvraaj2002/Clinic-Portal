@@ -36,7 +36,7 @@ export const login = async (email: string, password: string) => {
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, portal: true }),
     });
 
     if (!response.ok) {
@@ -65,6 +65,7 @@ export const signup = async (name: string, email: string, password: string, admi
             email,
             password,
             admin_access,
+            portal: true,
         }),
     });
 
@@ -106,6 +107,20 @@ export const getUserProfile = async () => {
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.detail || 'Failed to fetch user profile');
+    }
+
+    return response.json();
+};
+
+export const updateUserProfile = async (updateData: { email?: string; name?: string }) => {
+    const response = await apiCall('/auth/me', {
+        method: 'PUT',
+        body: JSON.stringify({ ...updateData, portal: true })
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Failed to update user profile');
     }
 
     return response.json();
@@ -328,7 +343,7 @@ export const updatePatientContactData = async (contactId: string, updatedData: a
 export const updateContactAdmin = async (contactId: string, updateData: any): Promise<any> => {
     console.log('Updating contact data for contact ID:', contactId);
     console.log('Update data:', updateData);
-    const endpoint = `/provider/admin/update-contact`;
+    const endpoint = `/provider/update-contact`;
     console.log('Update contact admin API endpoint:', endpoint);
 
     const response = await apiCall(endpoint, {
@@ -360,7 +375,7 @@ export const forgotPassword = async (email: string) => {
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, portal: true }),
     });
 
     console.log('Forgot password response status:', response.status);
@@ -416,7 +431,7 @@ export const resetPassword = async (token: string, newPassword: string) => {
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ token, new_password: newPassword }),
+        body: JSON.stringify({ token, new_password: newPassword, portal: true }),
     });
 
     console.log('Reset password response status:', response.status);

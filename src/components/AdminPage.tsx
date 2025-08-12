@@ -32,12 +32,12 @@ const AdminPage: React.FC = () => {
                 setError(null);
 
                 // Check if current user is admin and use appropriate endpoint
-                if (user?.admin_access) {
-                    console.log('Current user is admin, fetching active non-admin providers');
+                if (user?.provider_admin) {
+                    console.log('Current user is provider admin, fetching active non-admin providers');
                     const data = await getActiveNonAdminProviders();
                     setAllProvidersData(data); // Store providers for dropdown
                 } else {
-                    console.log('Current user is not admin, fetching all providers');
+                    console.log('Current user is not provider admin, fetching all providers');
                     const data = await getAllProviders();
                     setAllProvidersData(data); // Store all providers for dropdown
                 }
@@ -271,7 +271,7 @@ const AdminPage: React.FC = () => {
                                     </div>
                                 ) : (
                                     <>
-                                        {user?.admin_access ? (
+                                        {user?.provider_admin ? (
                                             // Admin user - show active non-admin providers stats
                                             <>
                                                 <div className="flex justify-between items-center">
@@ -532,12 +532,6 @@ const AdminPage: React.FC = () => {
                                                         Full Name
                                                     </th>
                                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                        Phone
-                                                    </th>
-                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                        Email
-                                                    </th>
-                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                         Details
                                                     </th>
                                                 </tr>
@@ -547,12 +541,6 @@ const AdminPage: React.FC = () => {
                                                     <tr key={patient.opportunity_id} className="hover:bg-gray-50 transition-colors duration-200">
                                                         <td className="px-6 py-4 whitespace-nowrap">
                                                             <div className="text-sm font-medium text-gray-900">{patient.contact.name}</div>
-                                                        </td>
-                                                        <td className="px-6 py-4 whitespace-nowrap">
-                                                            <div className="text-sm text-gray-600">{patient.contact.phone || 'N/A'}</div>
-                                                        </td>
-                                                        <td className="px-6 py-4 whitespace-nowrap">
-                                                            <div className="text-sm text-gray-600">{patient.contact.email || 'N/A'}</div>
                                                         </td>
                                                         <td className="px-6 py-4 whitespace-nowrap">
                                                             <button
