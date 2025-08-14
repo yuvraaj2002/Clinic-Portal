@@ -199,11 +199,12 @@ const App: React.FC = () => {
               {/* Premium Header & Navigation */}
               <Navbar maxWidth="full" className="bg-white border-b border-gray-100 shadow-sm">
                 <NavbarBrand className="px-6">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center">
-                      <Icon icon="lucide:rocket" className="w-4 h-4 text-white" />
-                    </div>
-                    <h1 className="font-bold text-foreground text-xl tracking-tight">OHC Pharmacy</h1>
+                  <div className="flex items-center">
+                    <img
+                      src="/ohc-logo-full.png"
+                      alt="OHC Pharmacy"
+                      className="h-8 w-auto object-contain"
+                    />
                   </div>
                 </NavbarBrand>
                 <NavbarContent justify="end" className="px-6">
