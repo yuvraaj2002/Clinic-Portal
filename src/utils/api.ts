@@ -153,20 +153,26 @@ export interface Patient {
     provider_name?: string;
 }
 
-export interface CustomField {
-    id: string;
-    name: string;
-    value: string | number | string[] | object;
-}
+export type FlexibleValue = string | number | string[] | Record<string, any> | null | undefined;
 
 export interface ContactData {
-    locationId: string;
-    phone: string;
-    country: string;
-    fullNameLowerCase: string;
-    emailLowerCase: string;
-    email: string;
-    customField: CustomField[];
+    Email: FlexibleValue;
+    "Date Ordered": FlexibleValue;
+    "Order Type": FlexibleValue;
+    "Patient Name": FlexibleValue;
+    DOB: FlexibleValue;
+    "Phone Number": FlexibleValue;
+    "Medication Ordered": FlexibleValue;
+    "Patient Shipping Address": FlexibleValue;
+    "Referred By": FlexibleValue;
+    "Payment Status": FlexibleValue;
+    "Payment Amount": FlexibleValue;
+    "Shipping Payment": FlexibleValue;
+    "Shipping Status": FlexibleValue;
+    "Tracking Number": FlexibleValue;
+    "Date Delivered": FlexibleValue;
+    "Invoice/Receipt": FlexibleValue;
+    "Pickup or Delivery": FlexibleValue;
 }
 
 export interface Provider {
@@ -314,43 +320,55 @@ export const getActiveNonAdminProviders = async (): Promise<any> => {
     return data;
 };
 
-// Function to update patient contact data (legacy)
-export const updatePatientContactData = async (contactId: string, updatedData: any): Promise<any> => {
-    console.log('Updating patient contact data for contact ID:', contactId);
-    const endpoint = `/provider/update-contact-data`;
-    console.log('Update contact data API endpoint:', endpoint);
-
-    const response = await apiCall(endpoint, {
-        method: 'PUT',
-        body: JSON.stringify({
-            contact_id: contactId,
-            contact_data: updatedData
-        })
-    });
-
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('Update Contact Data API Error Response:', errorData);
-        throw new Error(errorData.detail || errorData.message || 'Failed to update patient data');
-    }
-
-    const data = await response.json();
-    console.log('Update Contact Data API Success Response:', data);
-    return data;
+// Field ID mapping for transforming to GHL API format
+export const FIELD_ID_MAPPING: Record<string, string> = {
+    "Date Ordered": "3L9XfcLE9YnJkIcKMikl",
+    "Order Type": "ihPgOEFYsHfJBXBWSExr",
+    "Patient Name": "tOSe4kGY8AXqqFtDtv9Q",
+    "DOB": "JM9Qi30fiHvv4kbocCG5",
+    "Phone Number": "DE4VA2NCCwp2Z15JlMzB",
+    "Medication Ordered": "AfctuG4osa1YP0WlhmTu",
+    "Patient Shipping Address": "a9A5pbPilOwaEJbtUpS9",
+    "Referred By": "t41bERLhv9RaMzBeOHUH",
+    "Payment Status": "DzlxhiFcXqKsMDSTBKHT",
+    "Payment Amount": "Q2D8aa75BpHYyUxNNKkK",
+    "Shipping Payment": "FDdiCWYri6rjpUn3KNIS",
+    "Shipping Status": "jqzO2CJuwdi1vRJQdiKp",
+    "Tracking Number": "hqyAyDL8kYzytWheHjhO",
+    "Date Delivered": "uxDE2aB3j7XaCLIy0jGk",
+    "Invoice/Receipt": "bAzVoq0S0QQcdyz80hnL",
+    "Pickup or Delivery": "Bxgse825AkpLtcVitLHs"
 };
 
-// Function to update contact data using admin endpoint
+// Function to update contact data using admin endpoint (accepts flat field map or pre-built customField)
 export const updateContactAdmin = async (contactId: string, updateData: any): Promise<any> => {
     console.log('Updating contact data for contact ID:', contactId);
-    console.log('Update data:', updateData);
+    console.log('Raw update data from UI:', updateData);
+
+    // If caller already provided GHL shape, pass through
+    let updatePayload: any;
+    if (updateData && typeof updateData === 'object' && Array.isArray(updateData.customField)) {
+        updatePayload = { customField: updateData.customField };
+    } else if (updateData && typeof updateData === 'object') {
+        // Transform flat { "Field Name": value } to GHL { customField: [{ id, value }] }
+        const customFields = Object.entries(updateData)
+            .filter(([_, value]) => value !== null && value !== undefined && value !== '')
+            .map(([fieldName, value]) => ({ id: FIELD_ID_MAPPING[fieldName], value }))
+            .filter((cf) => Boolean(cf.id));
+        updatePayload = customFields.length > 0 ? { customField: customFields } : {};
+    } else {
+        updatePayload = {};
+    }
+
     const endpoint = `/provider/update-contact`;
     console.log('Update contact admin API endpoint:', endpoint);
+    console.log('Transformed update payload:', updatePayload);
 
     const response = await apiCall(endpoint, {
         method: 'PUT',
         body: JSON.stringify({
             contact_id: contactId,
-            update_data: updateData
+            update_data: updatePayload
         })
     });
 

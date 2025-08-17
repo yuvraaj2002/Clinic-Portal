@@ -9,6 +9,15 @@ import AdminPage from './components/AdminPage';
 import { useAuth } from './contexts/AuthContext';
 import { getPatients, getContactDetails, Patient, ContactDetailsResponse } from './utils/api';
 
+// Safely render any value coming from contact_data
+const renderValue = (value: any): React.ReactNode => {
+  if (value === null || value === undefined) return <span className="text-gray-500 text-sm">Not available</span>;
+  if (typeof value === 'string' || typeof value === 'number') return String(value);
+  if (Array.isArray(value)) return value.join(', ');
+  if (typeof value === 'object') return <span className="text-gray-700 text-sm break-all">{JSON.stringify(value)}</span>;
+  return String(value);
+};
+
 const App: React.FC = () => {
   const { isAuthenticated, user, loading, logout } = useAuth();
   const [currentPage, setCurrentPage] = React.useState(1);
@@ -421,79 +430,111 @@ const App: React.FC = () => {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                               <div className="space-y-4">
                                 <div>
-                                  <span className="text-sm font-medium text-gray-600 block mb-1">Full Name:</span>
-                                  <p className="text-lg font-semibold text-gray-900">{contactDetails[selectedPatient.opportunity_id]?.contact_data?.fullNameLowerCase}</p>
+                                  <span className="text-sm font-medium text-gray-600 block mb-1">Patient Name:</span>
+                                  <p className="text-lg font-semibold text-gray-900">{renderValue(contactDetails[selectedPatient.opportunity_id]?.contact_data?.["Patient Name"])}</p>
                                 </div>
                                 <div>
                                   <span className="text-sm font-medium text-gray-600 block mb-1">Email:</span>
-                                  <p className="text-gray-900">{contactDetails[selectedPatient.opportunity_id]?.contact_data?.email}</p>
+                                  <p className="text-gray-900">{renderValue(contactDetails[selectedPatient.opportunity_id]?.contact_data?.Email)}</p>
+                                </div>
+                                <div>
+                                  <span className="text-sm font-medium text-gray-600 block mb-1">Phone Number:</span>
+                                  <p className="text-gray-900">{renderValue(contactDetails[selectedPatient.opportunity_id]?.contact_data?.["Phone Number"])}</p>
+                                </div>
+                                <div>
+                                  <span className="text-sm font-medium text-gray-600 block mb-1">Date of Birth:</span>
+                                  <p className="text-gray-900">{renderValue(contactDetails[selectedPatient.opportunity_id]?.contact_data?.DOB)}</p>
                                 </div>
                               </div>
                               <div className="space-y-4">
                                 <div>
-                                  <span className="text-sm font-medium text-gray-600 block mb-1">Phone:</span>
-                                  <p className="text-gray-900">{contactDetails[selectedPatient.opportunity_id]?.contact_data?.phone}</p>
+                                  <span className="text-sm font-medium text-gray-600 block mb-1">Order Type:</span>
+                                  <p className="text-gray-900">{renderValue(contactDetails[selectedPatient.opportunity_id]?.contact_data?.["Order Type"])}</p>
                                 </div>
                                 <div>
-                                  <span className="text-sm font-medium text-gray-600 block mb-1">Country:</span>
-                                  <p className="text-gray-900">{contactDetails[selectedPatient.opportunity_id]?.contact_data?.country}</p>
+                                  <span className="text-sm font-medium text-gray-600 block mb-1">Date Ordered:</span>
+                                  <p className="text-gray-900">{renderValue(contactDetails[selectedPatient.opportunity_id]?.contact_data?.["Date Ordered"])}</p>
+                                </div>
+                                <div>
+                                  <span className="text-sm font-medium text-gray-600 block mb-1">Medication Ordered:</span>
+                                  <p className="text-gray-900">{renderValue(contactDetails[selectedPatient.opportunity_id]?.contact_data?.["Medication Ordered"])}</p>
+                                </div>
+                                <div>
+                                  <span className="text-sm font-medium text-gray-600 block mb-1">Referred By:</span>
+                                  <p className="text-gray-900">{renderValue(contactDetails[selectedPatient.opportunity_id]?.contact_data?.["Referred By"])}</p>
                                 </div>
                               </div>
                             </div>
                           </div>
 
-                          {/* Custom Fields */}
+                          {/* Order & Payment Information */}
                           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
                             <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
                               <h3 className="text-xl font-bold text-gray-900 flex items-center">
-                                <Icon icon="lucide:file-text" className="w-5 h-5 mr-2 text-primary-600" />
-                                Additional Information
+                                <Icon icon="lucide:credit-card" className="w-5 h-5 mr-2 text-primary-600" />
+                                Order & Payment Information
                               </h3>
                             </div>
                             <div className="p-6">
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {contactDetails[selectedPatient.opportunity_id]?.contact_data?.customField?.map((field) => (
-                                  <div key={field.id} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                                    <span className="text-sm font-semibold text-gray-700 block mb-2">{field.name}:</span>
-                                    <div className="text-gray-900">
-                                      {typeof field.value === 'string' ? (
-                                        <span className="text-sm">{field.value}</span>
-                                      ) : typeof field.value === 'number' ? (
-                                        <span className="text-sm font-medium">{field.value}</span>
-                                      ) : Array.isArray(field.value) ? (
-                                        <div className="flex flex-wrap gap-1">
-                                          {field.value.map((item, idx) => (
-                                            <span key={idx} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
-                                              {item}
-                                            </span>
-                                          ))}
-                                        </div>
-                                      ) : typeof field.value === 'object' && field.value !== null ? (
-                                        <div className="space-y-2">
-                                          <span className="text-xs font-medium text-gray-600 block">Document/File:</span>
-                                          {Object.keys(field.value).map((key, idx) => {
-                                            const fileData = (field.value as any)[key];
-                                            return (
-                                              <div key={idx} className="flex items-center space-x-2 p-2 bg-white rounded border">
-                                                <Icon icon="lucide:file-text" className="w-4 h-4 text-primary-600" />
-                                                <a
-                                                  href={fileData.url}
-                                                  target="_blank"
-                                                  rel="noopener noreferrer"
-                                                  className="text-primary-600 hover:text-primary-800 underline text-sm"
-                                                >
-                                                  {fileData.meta.originalname}
-                                                </a>
-                                              </div>
-                                            );
-                                          })}
-                                        </div>
-                                      ) : (
-                                        <span className="text-gray-500 text-sm">No value</span>
-                                      )}
-                                    </div>
+                                <div className="space-y-4">
+                                  <div>
+                                    <span className="text-sm font-medium text-gray-600 block mb-1">Payment Status:</span>
+                                    <p className="text-gray-900">{renderValue(contactDetails[selectedPatient.opportunity_id]?.contact_data?.["Payment Status"])}</p>
                                   </div>
-                                ))}
+                                  <div>
+                                    <span className="text-sm font-medium text-gray-600 block mb-1">Payment Amount:</span>
+                                    <p className="text-gray-900">{renderValue(contactDetails[selectedPatient.opportunity_id]?.contact_data?.["Payment Amount"])}</p>
+                                  </div>
+                                  <div>
+                                    <span className="text-sm font-medium text-gray-600 block mb-1">Invoice/Receipt:</span>
+                                    <p className="text-gray-900">{renderValue(contactDetails[selectedPatient.opportunity_id]?.contact_data?.["Invoice/Receipt"])}</p>
+                                  </div>
+                                </div>
+                                <div className="space-y-4">
+                                  <div>
+                                    <span className="text-sm font-medium text-gray-600 block mb-1">Shipping Payment:</span>
+                                    <p className="text-gray-900">{renderValue(contactDetails[selectedPatient.opportunity_id]?.contact_data?.["Shipping Payment"])}</p>
+                                  </div>
+                                  <div>
+                                    <span className="text-sm font-medium text-gray-600 block mb-1">Pickup or Delivery:</span>
+                                    <p className="text-gray-900">{renderValue(contactDetails[selectedPatient.opportunity_id]?.contact_data?.["Pickup or Delivery"])}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Shipping Information */}
+                          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                            <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                              <h3 className="text-xl font-bold text-gray-900 flex items-center">
+                                <Icon icon="lucide:truck" className="w-5 h-5 mr-2 text-primary-600" />
+                                Shipping Information
+                              </h3>
+                            </div>
+                            <div className="p-6">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-4">
+                                  <div>
+                                    <span className="text-sm font-medium text-gray-600 block mb-1">Shipping Status:</span>
+                                    <p className="text-gray-900">{renderValue(contactDetails[selectedPatient.opportunity_id]?.contact_data?.["Shipping Status"])}</p>
+                                  </div>
+                                  <div>
+                                    <span className="text-sm font-medium text-gray-600 block mb-1">Tracking Number:</span>
+                                    <p className="text-gray-900">{renderValue(contactDetails[selectedPatient.opportunity_id]?.contact_data?.["Tracking Number"])}</p>
+                                  </div>
+                                  <div>
+                                    <span className="text-sm font-medium text-gray-600 block mb-1">Date Delivered:</span>
+                                    <p className="text-gray-900">{renderValue(contactDetails[selectedPatient.opportunity_id]?.contact_data?.["Date Delivered"])}</p>
+                                  </div>
+                                </div>
+                                <div className="space-y-4">
+                                  <div>
+                                    <span className="text-sm font-medium text-gray-600 block mb-1">Patient Shipping Address:</span>
+                                    <p className="text-gray-900">{renderValue(contactDetails[selectedPatient.opportunity_id]?.contact_data?.["Patient Shipping Address"])}</p>
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           </div>

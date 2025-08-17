@@ -4,6 +4,15 @@ import { Icon } from "@iconify/react";
 import { useAuth } from '../contexts/AuthContext';
 import { getAllProviders, getActiveNonAdminProviders, getPatients, getContactDetails, updateContactAdmin, PatientsResponse, ContactDetailsResponse } from '../utils/api';
 
+// Safely render any value coming from contact_data
+const renderValue = (value: any): React.ReactNode => {
+    if (value === null || value === undefined) return <span className="text-gray-500 text-sm">Not available</span>;
+    if (typeof value === 'string' || typeof value === 'number') return String(value);
+    if (Array.isArray(value)) return value.join(', ');
+    if (typeof value === 'object') return <span className="text-gray-700 text-sm break-all">{JSON.stringify(value)}</span>;
+    return String(value);
+};
+
 const AdminPage: React.FC = () => {
     const { user } = useAuth();
     const [allProvidersData, setAllProvidersData] = React.useState<any>(null);
@@ -164,16 +173,6 @@ const AdminPage: React.FC = () => {
         }));
     };
 
-    // Handle custom field changes
-    const handleCustomFieldChange = (fieldId: string, value: any) => {
-        setEditedPatientData((prev: any) => ({
-            ...prev,
-            customField: prev.customField.map((field: any) =>
-                field.id === fieldId ? { ...field, value } : field
-            )
-        }));
-    };
-
     // Save changes
     const saveChanges = async () => {
         if (!selectedAdminPatient || !editedPatientData) return;
@@ -181,33 +180,15 @@ const AdminPage: React.FC = () => {
         try {
             setSavingChanges(true);
 
-            // Prepare the update data according to the API specification
+            // Prepare the update data according to the new API specification
             const updateData: any = {};
 
-            // Map basic fields
-            if (editedPatientData.fullNameLowerCase !== undefined) {
-                updateData.firstName = editedPatientData.fullNameLowerCase.split(' ')[0] || '';
-                updateData.lastName = editedPatientData.fullNameLowerCase.split(' ').slice(1).join(' ') || '';
-            }
-            if (editedPatientData.email !== undefined) {
-                updateData.email = editedPatientData.email;
-            }
-            if (editedPatientData.phone !== undefined) {
-                updateData.phone = editedPatientData.phone;
-            }
-            if (editedPatientData.country !== undefined) {
-                updateData.country = editedPatientData.country;
-            }
-
-            // Map custom fields
-            if (editedPatientData.customField && editedPatientData.customField.length > 0) {
-                updateData.customField = {};
-                editedPatientData.customField.forEach((field: any) => {
-                    if (field.value !== undefined) {
-                        updateData.customField[field.id] = field.value;
-                    }
-                });
-            }
+            // Map all the new fields directly
+            Object.keys(editedPatientData).forEach(key => {
+                if (editedPatientData[key] !== undefined) {
+                    updateData[key] = editedPatientData[key];
+                }
+            });
 
             console.log('Accumulated changes:', updateData);
 
@@ -634,16 +615,16 @@ const AdminPage: React.FC = () => {
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                 <div className="space-y-4">
                                                     <div>
-                                                        <span className="text-sm font-medium text-gray-600 block mb-1">Full Name:</span>
+                                                        <span className="text-sm font-medium text-gray-600 block mb-1">Patient Name:</span>
                                                         {isEditMode ? (
                                                             <input
                                                                 type="text"
-                                                                value={editedPatientData?.fullNameLowerCase || ''}
-                                                                onChange={(e) => handleFieldChange('fullNameLowerCase', e.target.value)}
+                                                                value={editedPatientData?.["Patient Name"] || ''}
+                                                                onChange={(e) => handleFieldChange('Patient Name', e.target.value)}
                                                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                                                             />
                                                         ) : (
-                                                            <p className="text-lg font-semibold text-gray-900">{adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.fullNameLowerCase}</p>
+                                                            <p className="text-lg font-semibold text-gray-900">{renderValue(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.["Patient Name"])}</p>
                                                         )}
                                                     </div>
                                                     <div>
@@ -651,125 +632,247 @@ const AdminPage: React.FC = () => {
                                                         {isEditMode ? (
                                                             <input
                                                                 type="email"
-                                                                value={editedPatientData?.email || ''}
-                                                                onChange={(e) => handleFieldChange('email', e.target.value)}
+                                                                value={editedPatientData?.Email || ''}
+                                                                onChange={(e) => handleFieldChange('Email', e.target.value)}
                                                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                                                             />
                                                         ) : (
-                                                            <p className="text-gray-900">{adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.email}</p>
+                                                            <p className="text-gray-900">{renderValue(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.Email)}</p>
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-sm font-medium text-gray-600 block mb-1">Phone Number:</span>
+                                                        {isEditMode ? (
+                                                            <input
+                                                                type="tel"
+                                                                value={editedPatientData?.["Phone Number"] || ''}
+                                                                onChange={(e) => handleFieldChange('Phone Number', e.target.value)}
+                                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                                            />
+                                                        ) : (
+                                                            <p className="text-gray-900">{renderValue(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.["Phone Number"])}</p>
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-sm font-medium text-gray-600 block mb-1">Date of Birth:</span>
+                                                        {isEditMode ? (
+                                                            <input
+                                                                type="text"
+                                                                value={editedPatientData?.DOB || ''}
+                                                                onChange={(e) => handleFieldChange('DOB', e.target.value)}
+                                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                                            />
+                                                        ) : (
+                                                            <p className="text-gray-900">{renderValue(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.DOB)}</p>
                                                         )}
                                                     </div>
                                                 </div>
                                                 <div className="space-y-4">
                                                     <div>
-                                                        <span className="text-sm font-medium text-gray-600 block mb-1">Phone:</span>
-                                                        {isEditMode ? (
-                                                            <input
-                                                                type="tel"
-                                                                value={editedPatientData?.phone || ''}
-                                                                onChange={(e) => handleFieldChange('phone', e.target.value)}
-                                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                                            />
-                                                        ) : (
-                                                            <p className="text-gray-900">{adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.phone}</p>
-                                                        )}
-                                                    </div>
-                                                    <div>
-                                                        <span className="text-sm font-medium text-gray-600 block mb-1">Country:</span>
+                                                        <span className="text-sm font-medium text-gray-600 block mb-1">Order Type:</span>
                                                         {isEditMode ? (
                                                             <input
                                                                 type="text"
-                                                                value={editedPatientData?.country || ''}
-                                                                onChange={(e) => handleFieldChange('country', e.target.value)}
+                                                                value={editedPatientData?.["Order Type"] || ''}
+                                                                onChange={(e) => handleFieldChange('Order Type', e.target.value)}
                                                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                                                             />
                                                         ) : (
-                                                            <p className="text-gray-900">{adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.country}</p>
+                                                            <p className="text-gray-900">{renderValue(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.["Order Type"])}</p>
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-sm font-medium text-gray-600 block mb-1">Date Ordered:</span>
+                                                        {isEditMode ? (
+                                                            <input
+                                                                type="text"
+                                                                value={editedPatientData?.["Date Ordered"] || ''}
+                                                                onChange={(e) => handleFieldChange('Date Ordered', e.target.value)}
+                                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                                            />
+                                                        ) : (
+                                                            <p className="text-gray-900">{renderValue(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.["Date Ordered"])}</p>
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-sm font-medium text-gray-600 block mb-1">Medication Ordered:</span>
+                                                        {isEditMode ? (
+                                                            <input
+                                                                type="text"
+                                                                value={editedPatientData?.["Medication Ordered"] || ''}
+                                                                onChange={(e) => handleFieldChange('Medication Ordered', e.target.value)}
+                                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                                            />
+                                                        ) : (
+                                                            <p className="text-gray-900">{renderValue(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.["Medication Ordered"])}</p>
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-sm font-medium text-gray-600 block mb-1">Referred By:</span>
+                                                        {isEditMode ? (
+                                                            <input
+                                                                type="text"
+                                                                value={editedPatientData?.["Referred By"] || ''}
+                                                                onChange={(e) => handleFieldChange('Referred By', e.target.value)}
+                                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                                            />
+                                                        ) : (
+                                                            <p className="text-gray-900">{renderValue(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.["Referred By"])}</p>
                                                         )}
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
 
-                                        {/* Custom Fields */}
+                                        {/* Order & Payment Information */}
                                         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
                                             <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
                                                 <h3 className="text-xl font-bold text-gray-900 flex items-center">
-                                                    <Icon icon="lucide:file-text" className="w-5 h-5 mr-2 text-primary-600" />
-                                                    Additional Information
+                                                    <Icon icon="lucide:credit-card" className="w-5 h-5 mr-2 text-primary-600" />
+                                                    Order & Payment Information
                                                 </h3>
                                             </div>
                                             <div className="p-6">
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                    {(isEditMode ? editedPatientData?.customField : adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.customField)?.map((field: any) => (
-                                                        <div key={field.id} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                                                            <span className="text-sm font-semibold text-gray-700 block mb-2">{field.name}:</span>
-                                                            <div className="text-gray-900">
-                                                                {isEditMode ? (
-                                                                    // Edit mode - show input fields
-                                                                    typeof field.value === 'string' ? (
-                                                                        <input
-                                                                            type="text"
-                                                                            value={field.value || ''}
-                                                                            onChange={(e) => handleCustomFieldChange(field.id, e.target.value)}
-                                                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
-                                                                        />
-                                                                    ) : typeof field.value === 'number' ? (
-                                                                        <input
-                                                                            type="number"
-                                                                            value={field.value || ''}
-                                                                            onChange={(e) => handleCustomFieldChange(field.id, Number(e.target.value))}
-                                                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
-                                                                        />
-                                                                    ) : Array.isArray(field.value) ? (
-                                                                        <input
-                                                                            type="text"
-                                                                            value={field.value.join(', ') || ''}
-                                                                            onChange={(e) => handleCustomFieldChange(field.id, e.target.value.split(', ').filter(item => item.trim()))}
-                                                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
-                                                                            placeholder="Enter values separated by commas"
-                                                                        />
-                                                                    ) : (
-                                                                        <span className="text-gray-500 text-sm">Complex field - cannot edit</span>
-                                                                    )
-                                                                ) : (
-                                                                    // View mode - show values
-                                                                    typeof field.value === 'string' ? (
-                                                                        <span className="text-sm">{field.value}</span>
-                                                                    ) : typeof field.value === 'number' ? (
-                                                                        <span className="text-sm font-medium">{field.value}</span>
-                                                                    ) : Array.isArray(field.value) ? (
-                                                                        <div className="flex flex-wrap gap-1">
-                                                                            {field.value.map((item: any, idx: number) => (
-                                                                                <span key={idx} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
-                                                                                    {item}
-                                                                                </span>
-                                                                            ))}
-                                                                        </div>
-                                                                    ) : typeof field.value === 'object' && field.value !== null ? (
-                                                                        <div className="space-y-2">
-                                                                            <span className="text-xs font-medium text-gray-600 block">Document/File:</span>
-                                                                            {Object.entries(field.value).map(([key, fileData]) => (
-                                                                                <div key={key} className="flex items-center space-x-2 p-2 bg-white rounded border">
-                                                                                    <Icon icon="lucide:file-text" className="w-4 h-4 text-primary-600" />
-                                                                                    <a
-                                                                                        href={(fileData as any).url}
-                                                                                        target="_blank"
-                                                                                        rel="noopener noreferrer"
-                                                                                        className="text-primary-600 hover:text-primary-800 underline text-sm"
-                                                                                    >
-                                                                                        {(fileData as any).meta.originalname}
-                                                                                    </a>
-                                                                                </div>
-                                                                            ))}
-                                                                        </div>
-                                                                    ) : (
-                                                                        <span className="text-gray-500 text-sm">No value</span>
-                                                                    )
-                                                                )}
-                                                            </div>
+                                                    <div className="space-y-4">
+                                                        <div>
+                                                            <span className="text-sm font-medium text-gray-600 block mb-1">Payment Status:</span>
+                                                            {isEditMode ? (
+                                                                <input
+                                                                    type="text"
+                                                                    value={editedPatientData?.["Payment Status"] || ''}
+                                                                    onChange={(e) => handleFieldChange('Payment Status', e.target.value)}
+                                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                                                />
+                                                            ) : (
+                                                                <p className="text-gray-900">{renderValue(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.["Payment Status"])}</p>
+                                                            )}
                                                         </div>
-                                                    ))}
+                                                        <div>
+                                                            <span className="text-sm font-medium text-gray-600 block mb-1">Payment Amount:</span>
+                                                            {isEditMode ? (
+                                                                <input
+                                                                    type="text"
+                                                                    value={editedPatientData?.["Payment Amount"] || ''}
+                                                                    onChange={(e) => handleFieldChange('Payment Amount', e.target.value)}
+                                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                                                />
+                                                            ) : (
+                                                                <p className="text-gray-900">{renderValue(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.["Payment Amount"])}</p>
+                                                            )}
+                                                        </div>
+                                                        <div>
+                                                            <span className="text-sm font-medium text-gray-600 block mb-1">Invoice/Receipt:</span>
+                                                            {isEditMode ? (
+                                                                <input
+                                                                    type="text"
+                                                                    value={editedPatientData?.["Invoice/Receipt"] || ''}
+                                                                    onChange={(e) => handleFieldChange('Invoice/Receipt', e.target.value)}
+                                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                                                />
+                                                            ) : (
+                                                                <p className="text-gray-900">{renderValue(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.["Invoice/Receipt"])}</p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <div className="space-y-4">
+                                                        <div>
+                                                            <span className="text-sm font-medium text-gray-600 block mb-1">Shipping Payment:</span>
+                                                            {isEditMode ? (
+                                                                <input
+                                                                    type="text"
+                                                                    value={editedPatientData?.["Shipping Payment"] || ''}
+                                                                    onChange={(e) => handleFieldChange('Shipping Payment', e.target.value)}
+                                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                                                />
+                                                            ) : (
+                                                                <p className="text-gray-900">{renderValue(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.["Shipping Payment"])}</p>
+                                                            )}
+                                                        </div>
+                                                        <div>
+                                                            <span className="text-sm font-medium text-gray-600 block mb-1">Pickup or Delivery:</span>
+                                                            {isEditMode ? (
+                                                                <input
+                                                                    type="text"
+                                                                    value={editedPatientData?.["Pickup or Delivery"] || ''}
+                                                                    onChange={(e) => handleFieldChange('Pickup or Delivery', e.target.value)}
+                                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                                                />
+                                                            ) : (
+                                                                <p className="text-gray-900">{renderValue(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.["Pickup or Delivery"])}</p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Shipping Information */}
+                                        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                                            <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                                                <h3 className="text-xl font-bold text-gray-900 flex items-center">
+                                                    <Icon icon="lucide:truck" className="w-5 h-5 mr-2 text-primary-600" />
+                                                    Shipping Information
+                                                </h3>
+                                            </div>
+                                            <div className="p-6">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                    <div className="space-y-4">
+                                                        <div>
+                                                            <span className="text-sm font-medium text-gray-600 block mb-1">Shipping Status:</span>
+                                                            {isEditMode ? (
+                                                                <input
+                                                                    type="text"
+                                                                    value={editedPatientData?.["Shipping Status"] || ''}
+                                                                    onChange={(e) => handleFieldChange('Shipping Status', e.target.value)}
+                                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                                                />
+                                                            ) : (
+                                                                <p className="text-gray-900">{renderValue(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.["Shipping Status"])}</p>
+                                                            )}
+                                                        </div>
+                                                        <div>
+                                                            <span className="text-sm font-medium text-gray-600 block mb-1">Tracking Number:</span>
+                                                            {isEditMode ? (
+                                                                <input
+                                                                    type="text"
+                                                                    value={editedPatientData?.["Tracking Number"] || ''}
+                                                                    onChange={(e) => handleFieldChange('Tracking Number', e.target.value)}
+                                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                                                />
+                                                            ) : (
+                                                                <p className="text-gray-900">{renderValue(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.["Tracking Number"])}</p>
+                                                            )}
+                                                        </div>
+                                                        <div>
+                                                            <span className="text-sm font-medium text-gray-600 block mb-1">Date Delivered:</span>
+                                                            {isEditMode ? (
+                                                                <input
+                                                                    type="text"
+                                                                    value={editedPatientData?.["Date Delivered"] || ''}
+                                                                    onChange={(e) => handleFieldChange('Date Delivered', e.target.value)}
+                                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                                                />
+                                                            ) : (
+                                                                <p className="text-gray-900">{renderValue(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.["Date Delivered"])}</p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <div className="space-y-4">
+                                                        <div>
+                                                            <span className="text-sm font-medium text-gray-600 block mb-1">Patient Shipping Address:</span>
+                                                            {isEditMode ? (
+                                                                <textarea
+                                                                    value={editedPatientData?.["Patient Shipping Address"] || ''}
+                                                                    onChange={(e) => handleFieldChange('Patient Shipping Address', e.target.value)}
+                                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                                                    rows={3}
+                                                                />
+                                                            ) : (
+                                                                <p className="text-gray-900">{renderValue(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.["Patient Shipping Address"])}</p>
+                                                            )}
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
