@@ -13,6 +13,20 @@ const renderValue = (value: any): React.ReactNode => {
     return String(value);
 };
 
+// Format currency amounts with proper dollar sign and decimal formatting
+const formatCurrency = (value: any): string => {
+    if (value === null || value === undefined) return 'Not available';
+    if (typeof value === 'string') {
+        const numValue = parseFloat(value);
+        if (isNaN(numValue)) return value;
+        return `$${numValue.toFixed(2)}`;
+    }
+    if (typeof value === 'number') {
+        return `$${value.toFixed(2)}`;
+    }
+    return 'Not available';
+};
+
 const AdminPage: React.FC = () => {
     const { user } = useAuth();
     const [allProvidersData, setAllProvidersData] = React.useState<any>(null);
@@ -758,7 +772,7 @@ const AdminPage: React.FC = () => {
                                                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                                                                 />
                                                             ) : (
-                                                                <p className="text-gray-900">{renderValue(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.["Payment Amount"])}</p>
+                                                                <p className="text-gray-900">{formatCurrency(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.["Payment Amount"])}</p>
                                                             )}
                                                         </div>
                                                         <div>
@@ -786,7 +800,7 @@ const AdminPage: React.FC = () => {
                                                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                                                                 />
                                                             ) : (
-                                                                <p className="text-gray-900">{renderValue(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.["Shipping Payment"])}</p>
+                                                                <p className="text-gray-900">{formatCurrency(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.["Shipping Payment"])}</p>
                                                             )}
                                                         </div>
                                                         <div>
