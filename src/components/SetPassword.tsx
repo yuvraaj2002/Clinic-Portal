@@ -216,10 +216,17 @@ const SetPassword: React.FC<SetPasswordProps> = ({ onAuthSuccess }) => {
             <div className="w-full max-w-md">
                 {/* Logo/Brand Section */}
                 <div className="text-center mb-8">
-                    <div className="w-16 h-16 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                        <Icon icon="lucide:rocket" className="w-8 h-8 text-white" />
+                    <div className="w-48 h-16 mx-auto mb-4">
+                        <img
+                            src="/ohc-logo-full.png"
+                            alt="OHC Pharmacy Logo"
+                            className="w-full h-full object-contain"
+                            onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                            }}
+                        />
                     </div>
-                    <h1 className="text-2xl font-bold text-gray-800 mb-2">OHC Pharmacy</h1>
                     <p className="text-gray-600 text-sm">Set your password to complete account setup</p>
                 </div>
 
