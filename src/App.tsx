@@ -10,10 +10,42 @@ import { useAuth } from './contexts/AuthContext';
 import { getPatients, getContactDetails, Patient, ContactDetailsResponse } from './utils/api';
 
 // Safely render any value coming from contact_data
-const renderValue = (value: any): React.ReactNode => {
+const renderValue = (value: any, fieldName?: string): React.ReactNode => {
   if (value === null || value === undefined) return <span className="text-gray-500 text-sm">Not available</span>;
+
+  // Special handling for Invoice/Receipt field
+  if (fieldName === "Invoice/Receipt" && typeof value === 'string' && (value.startsWith('http://') || value.startsWith('https://'))) {
+    return (
+      <div className="flex items-center space-x-2">
+        <Icon icon="lucide:file-text" className="w-4 h-4 text-primary-600" />
+        <a
+          href={value}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary-600 hover:text-primary-800 underline font-medium"
+        >
+          View Invoice/Receipt
+        </a>
+      </div>
+    );
+  }
+
+  // Handle arrays more elegantly
+  if (Array.isArray(value)) {
+    if (value.length === 0) return <span className="text-gray-500 text-sm">None</span>;
+    if (value.length === 1) return String(value[0]);
+    return (
+      <div className="flex flex-wrap gap-1">
+        {value.map((item, index) => (
+          <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
+            {String(item)}
+          </span>
+        ))}
+      </div>
+    );
+  }
+
   if (typeof value === 'string' || typeof value === 'number') return String(value);
-  if (Array.isArray(value)) return value.join(', ');
   if (typeof value === 'object') return <span className="text-gray-700 text-sm break-all">{JSON.stringify(value)}</span>;
   return String(value);
 };
@@ -503,7 +535,7 @@ const App: React.FC = () => {
                                   </div>
                                   <div>
                                     <span className="text-sm font-medium text-gray-600 block mb-1">Invoice/Receipt:</span>
-                                    <p className="text-gray-900">{renderValue(contactDetails[selectedPatient.opportunity_id]?.contact_data?.["Invoice/Receipt"])}</p>
+                                    <p className="text-gray-900">{renderValue(contactDetails[selectedPatient.opportunity_id]?.contact_data?.["Invoice/Receipt"], "Invoice/Receipt")}</p>
                                   </div>
                                 </div>
                                 <div className="space-y-4">
