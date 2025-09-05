@@ -7,7 +7,9 @@ import SetPassword from './components/SetPassword';
 import ResetPassword from './components/ResetPassword';
 import AdminPage from './components/AdminPage';
 import { useAuth } from './contexts/AuthContext';
-import { getPatients, getContactDetails, Patient, ContactDetailsResponse } from './utils/api';
+import { getPatients, getContactDetails, Patient, ContactDetailsResponse, PatientsResponse } from './utils/api';
+import { DateDisplay } from './components/ui/date-display';
+import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs';
 
 // Safely render any value coming from contact_data
 const renderValue = (value: any, fieldName?: string): React.ReactNode => {
@@ -70,11 +72,13 @@ const App: React.FC = () => {
   const [showWelcomeCard, setShowWelcomeCard] = React.useState(false);
 
   // State for API data
+  const [patientsData, setPatientsData] = React.useState<PatientsResponse | null>(null);
   const [patients, setPatients] = React.useState<Patient[]>([]);
   const [totalPatients, setTotalPatients] = React.useState(0);
   const [patientsLoading, setPatientsLoading] = React.useState(true);
   const [patientsError, setPatientsError] = React.useState<string | null>(null);
   const [searchQuery, setSearchQuery] = React.useState('');
+  const [dateFilter, setDateFilter] = React.useState<string>('all');
   const [contactDetails, setContactDetails] = React.useState<Record<string, ContactDetailsResponse>>({});
   const [loadingDetails, setLoadingDetails] = React.useState<Set<string>>(new Set());
   const [showDetailsModal, setShowDetailsModal] = React.useState(false);
@@ -101,7 +105,7 @@ const App: React.FC = () => {
   const patientsPerPage = 20;
 
   // Function to fetch patients from API
-  const fetchPatients = async () => {
+  const fetchPatients = async (filter?: string) => {
     try {
       setPatientsLoading(true);
       setPatientsError(null);
@@ -112,8 +116,10 @@ const App: React.FC = () => {
         providerName = user.name;
       }
 
-      console.log('Fetching patients for user:', user?.name, 'Admin:', user?.admin_access);
-      const response = await getPatients(providerName);
+      console.log('Fetching patients for user:', user?.name, 'Admin:', user?.admin_access, 'Filter:', filter);
+      const filterParam = filter && filter !== 'all' ? filter : null;
+      const response = await getPatients(providerName, filterParam);
+      setPatientsData(response);
       setPatients(response.patients);
       setTotalPatients(response.total_patients);
     } catch (error) {
@@ -127,7 +133,7 @@ const App: React.FC = () => {
   // Load patients when component mounts
   React.useEffect(() => {
     if (isAuthenticated && user) {
-      fetchPatients();
+      fetchPatients(dateFilter);
       // Show welcome card for new login/signup
       setShowWelcomeCard(true);
       // Hide welcome card after 5 seconds
@@ -136,6 +142,14 @@ const App: React.FC = () => {
       }, 5000);
     }
   }, [isAuthenticated, user]);
+
+  // Fetch patients when filter changes
+  React.useEffect(() => {
+    if (isAuthenticated && user) {
+      fetchPatients(dateFilter);
+      setCurrentPage(1); // Reset to first page when filter changes
+    }
+  }, [dateFilter]);
 
   const handleAuthSuccess = () => {
     // Authentication is now handled by the context
@@ -316,7 +330,7 @@ const App: React.FC = () => {
                     /* Main Content Area */
                     <main className="container mx-auto px-6 py-8 max-w-7xl min-h-[calc(100vh-200px)]">
                       {/* Compact Header Section */}
-                      <div className="flex justify-between items-center mb-8">
+                      <div className="flex justify-between items-center mb-6">
                         <div>
                           <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Patients</h2>
                           <p className="text-gray-600 text-sm mt-1">
@@ -324,6 +338,11 @@ const App: React.FC = () => {
                               ? "Manage and view patient records"
                               : `Your patients (${totalPatients} total)`
                             }
+                            {patientsData?.filter_applied && (
+                              <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
+                                Filter: {patientsData.filter_applied}
+                              </span>
+                            )}
                           </p>
                         </div>
                         <div className="flex space-x-3">
@@ -345,6 +364,49 @@ const App: React.FC = () => {
                         </div>
                       </div>
 
+                      {/* Date Filter Tabs */}
+                      <div className="mb-6">
+                        <Tabs value={dateFilter} onValueChange={setDateFilter}>
+                          <TabsList className="grid w-full grid-cols-5 bg-gradient-to-r from-primary-50 to-secondary-50 border border-primary-100 p-1 rounded-xl shadow-sm">
+                            <TabsTrigger
+                              value="all"
+                              className="flex items-center justify-center space-x-2 text-sm font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary-500 data-[state=active]:to-secondary-500 data-[state=active]:text-white data-[state=active]:shadow-md hover:bg-white/50 rounded-lg"
+                            >
+                              <Icon icon="lucide:users" className="w-4 h-4" />
+                              <span>All Patients</span>
+                            </TabsTrigger>
+                            <TabsTrigger
+                              value="today"
+                              className="flex items-center justify-center space-x-2 text-sm font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary-500 data-[state=active]:to-secondary-500 data-[state=active]:text-white data-[state=active]:shadow-md hover:bg-white/50 rounded-lg"
+                            >
+                              <Icon icon="lucide:calendar-days" className="w-4 h-4" />
+                              <span>Today</span>
+                            </TabsTrigger>
+                            <TabsTrigger
+                              value="week"
+                              className="flex items-center justify-center space-x-2 text-sm font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary-500 data-[state=active]:to-secondary-500 data-[state=active]:text-white data-[state=active]:shadow-md hover:bg-white/50 rounded-lg"
+                            >
+                              <Icon icon="lucide:calendar-range" className="w-4 h-4" />
+                              <span>Last 7 Days</span>
+                            </TabsTrigger>
+                            <TabsTrigger
+                              value="month"
+                              className="flex items-center justify-center space-x-2 text-sm font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary-500 data-[state=active]:to-secondary-500 data-[state=active]:text-white data-[state=active]:shadow-md hover:bg-white/50 rounded-lg"
+                            >
+                              <Icon icon="lucide:calendar" className="w-4 h-4" />
+                              <span>Last 30 Days</span>
+                            </TabsTrigger>
+                            <TabsTrigger
+                              value="year"
+                              className="flex items-center justify-center space-x-2 text-sm font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary-500 data-[state=active]:to-secondary-500 data-[state=active]:text-white data-[state=active]:shadow-md hover:bg-white/50 rounded-lg"
+                            >
+                              <Icon icon="lucide:calendar-clock" className="w-4 h-4" />
+                              <span>Last 365 Days</span>
+                            </TabsTrigger>
+                          </TabsList>
+                        </Tabs>
+                      </div>
+
                       {/* Premium Compact Table Design */}
                       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
                         <Table
@@ -360,12 +422,13 @@ const App: React.FC = () => {
                         >
                           <TableHeader>
                             <TableColumn className="font-semibold">FULL NAME</TableColumn>
+                            <TableColumn className="font-semibold">DATE</TableColumn>
                             <TableColumn className="font-semibold">DETAILS</TableColumn>
                           </TableHeader>
                           <TableBody>
                             {patientsLoading ? (
                               <TableRow>
-                                <TableCell colSpan={2} className="text-center py-8">
+                                <TableCell colSpan={3} className="text-center py-8">
                                   <div className="flex items-center justify-center">
                                     <Icon icon="lucide:loader-2" className="w-6 h-6 animate-spin text-primary-600 mr-2" />
                                     <span className="text-gray-600">Loading patients...</span>
@@ -374,7 +437,7 @@ const App: React.FC = () => {
                               </TableRow>
                             ) : patientsError ? (
                               <TableRow>
-                                <TableCell colSpan={2} className="text-center py-8">
+                                <TableCell colSpan={3} className="text-center py-8">
                                   <div className="flex items-center justify-center text-red-600">
                                     <Icon icon="lucide:alert-circle" className="w-6 h-6 mr-2" />
                                     <span>{patientsError}</span>
@@ -383,7 +446,7 @@ const App: React.FC = () => {
                               </TableRow>
                             ) : currentPatients.length === 0 ? (
                               <TableRow>
-                                <TableCell colSpan={2} className="text-center py-8">
+                                <TableCell colSpan={3} className="text-center py-8">
                                   <div className="flex items-center justify-center text-gray-600">
                                     <Icon icon="lucide:users" className="w-6 h-6 mr-2" />
                                     <span>No patients found</span>
@@ -394,6 +457,13 @@ const App: React.FC = () => {
                               currentPatients.map((patient) => (
                                 <TableRow key={patient.opportunity_id} className="hover:bg-primary-50 transition-colors duration-200">
                                   <TableCell className="font-medium">{patient.contact.name}</TableCell>
+                                  <TableCell>
+                                    {patient.contact.date ? (
+                                      <DateDisplay date={patient.contact.date} format="short" />
+                                    ) : (
+                                      <span className="text-xs text-gray-400">No Date</span>
+                                    )}
+                                  </TableCell>
                                   <TableCell>
                                     <Button
                                       size="sm"
@@ -415,7 +485,8 @@ const App: React.FC = () => {
                         <div className="flex justify-between items-center px-6 py-4 bg-gray-50 border-t border-gray-100">
                           <div className="text-sm text-gray-600">
                             Showing {startIndex + 1} to {Math.min(startIndex + patientsPerPage, filteredPatients.length)} of {filteredPatients.length} patients
-                            {searchQuery && ` (filtered from ${totalPatients} total)`}
+                            {searchQuery && ` (search filtered)`}
+                            {patientsData?.filter_applied && ` (${patientsData.filter_applied} filter applied)`}
                           </div>
                           <Pagination
                             total={totalPages}

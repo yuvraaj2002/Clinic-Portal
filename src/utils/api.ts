@@ -144,6 +144,7 @@ export interface PatientContact {
     name: string;
     phone: string | null;
     email: string | null;
+    date: string;
     tags?: string[];
 }
 
@@ -201,12 +202,13 @@ export interface PatientsResponse {
     success: boolean;
     provider_name: string;
     pipeline_id: string;
+    filter_applied: string | null;
     total_patients: number;
     patients: Patient[];
 }
 
 // Function to fetch patients from the API
-export const getPatients = async (providerName?: string): Promise<PatientsResponse> => {
+export const getPatients = async (providerName?: string, filter?: string | null): Promise<PatientsResponse> => {
     // If no provider name is provided, try to get it from session storage
     let finalProviderName = providerName;
 
@@ -227,8 +229,14 @@ export const getPatients = async (providerName?: string): Promise<PatientsRespon
         finalProviderName = "BridgeCreek Patient Tracker";
     }
 
-    console.log('Fetching patients with provider name:', finalProviderName);
-    const endpoint = `/provider/provider-patients?provider_name=${encodeURIComponent(finalProviderName)}`;
+    console.log('Fetching patients with provider name:', finalProviderName, 'and filter:', filter);
+
+    // Build endpoint with optional filter parameter
+    const params = new URLSearchParams({ provider_name: finalProviderName });
+    if (filter) {
+        params.append('filter', filter);
+    }
+    const endpoint = `/provider/provider-patients?${params.toString()}`;
     console.log('API endpoint:', endpoint);
 
     const response = await apiCall(endpoint);

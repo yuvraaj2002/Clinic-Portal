@@ -558,28 +558,46 @@ const AdminPage: React.FC = () => {
                                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                         Full Name
                                                     </th>
+                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-blue-100">
+                                                        📅 Date Added
+                                                    </th>
                                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                         Details
                                                     </th>
                                                 </tr>
                                             </thead>
                                             <tbody className="bg-white divide-y divide-gray-200">
-                                                {(filteredAdminPatients || adminPatients)?.patients.map((patient) => (
-                                                    <tr key={patient.opportunity_id} className="hover:bg-gray-50 transition-colors duration-200">
-                                                        <td className="px-6 py-4 whitespace-nowrap">
-                                                            <div className="text-sm font-medium text-gray-900">{patient.contact.name}</div>
-                                                        </td>
-                                                        <td className="px-6 py-4 whitespace-nowrap">
-                                                            <button
-                                                                onClick={() => openAdminDetailsModal(patient)}
-                                                                className="inline-flex items-center px-3 py-1 border border-primary-300 rounded-md text-xs font-medium text-primary-700 bg-white hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-200"
-                                                            >
-                                                                <Icon icon="lucide:eye" className="w-3 h-3 mr-1" />
-                                                                Details
-                                                            </button>
-                                                        </td>
-                                                    </tr>
-                                                ))}
+                                                {(filteredAdminPatients || adminPatients)?.patients.map((patient) => {
+                                                    console.log('Patient data:', patient);
+                                                    console.log('Patient date:', patient.contact.date);
+                                                    return (
+                                                        <tr key={patient.opportunity_id} className="hover:bg-gray-50 transition-colors duration-200">
+                                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                                <div className="text-sm font-medium text-gray-900">{patient.contact.name}</div>
+                                                            </td>
+                                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                                <div className="text-sm text-gray-600 bg-blue-50 p-2 rounded">
+                                                                    📅 {patient.contact.date ? new Date(patient.contact.date).toLocaleDateString('en-US', {
+                                                                        year: 'numeric',
+                                                                        month: 'short',
+                                                                        day: 'numeric',
+                                                                        hour: '2-digit',
+                                                                        minute: '2-digit'
+                                                                    }) : 'No Date'}
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                                <button
+                                                                    onClick={() => openAdminDetailsModal(patient)}
+                                                                    className="inline-flex items-center px-3 py-1 border border-primary-300 rounded-md text-xs font-medium text-primary-700 bg-white hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-200"
+                                                                >
+                                                                    <Icon icon="lucide:eye" className="w-3 h-3 mr-1" />
+                                                                    Details
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
                                             </tbody>
                                         </table>
                                     </div>
