@@ -1,6 +1,16 @@
 // API utility functions for making authenticated requests
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 
+// Helper function to extract date part from Date object or ISO string
+const extractDatePart = (date: Date | string): string => {
+    if (typeof date === 'string') {
+        // If it's already a string, check if it contains time part
+        return date.includes('T') ? date.split('T')[0]! : date;
+    }
+    // If it's a Date object, convert to ISO and extract date part
+    return date.toISOString().split('T')[0]!;
+};
+
 // Debug: Log API base URL
 console.log('API Base URL:', API_BASE_URL);
 console.log('Environment VITE_API_URL:', import.meta.env.VITE_API_URL);
@@ -208,7 +218,7 @@ export interface PatientsResponse {
 }
 
 // Function to fetch patients from the API
-export const getPatients = async (providerName?: string, filter?: string | null): Promise<PatientsResponse> => {
+export const getPatients = async (providerName?: string, filter?: string | null, customDateRange?: { from: Date | null, to: Date | null }): Promise<PatientsResponse> => {
     // If no provider name is provided, try to get it from session storage
     let finalProviderName = providerName;
 
@@ -229,12 +239,31 @@ export const getPatients = async (providerName?: string, filter?: string | null)
         finalProviderName = "BridgeCreek Patient Tracker";
     }
 
-    console.log('Fetching patients with provider name:', finalProviderName, 'and filter:', filter);
+    console.log('Fetching patients with provider name:', finalProviderName, 'and filter:', filter, 'custom range:', customDateRange);
 
     // Build endpoint with optional filter parameter
     const params = new URLSearchParams({ provider_name: finalProviderName });
     if (filter) {
         params.append('filter', filter);
+    }
+    if (customDateRange?.from && customDateRange?.to) {
+        // Extract just the date part (YYYY-MM-DD) from Date objects
+        const startDateOnly = extractDatePart(customDateRange.from);
+        const endDateOnly = extractDatePart(customDateRange.to);
+        console.log('Original dates:', {
+            from: customDateRange.from.toISOString(),
+            to: customDateRange.to.toISOString(),
+            fromLocal: customDateRange.from.toLocaleDateString(),
+            toLocal: customDateRange.to.toLocaleDateString(),
+            fromDateOnly: customDateRange.from.toDateString(),
+            toDateOnly: customDateRange.to.toDateString()
+        });
+        console.log('Extracted date parts:', {
+            startDateOnly,
+            endDateOnly
+        });
+        params.append('start_date', startDateOnly);
+        params.append('end_date', endDateOnly);
     }
     const endpoint = `/provider/provider-patients?${params.toString()}`;
     console.log('API endpoint:', endpoint);

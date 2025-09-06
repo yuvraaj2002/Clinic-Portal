@@ -10,6 +10,7 @@ import { useAuth } from './contexts/AuthContext';
 import { getPatients, getContactDetails, Patient, ContactDetailsResponse, PatientsResponse } from './utils/api';
 import { DateDisplay } from './components/ui/date-display';
 import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs';
+import { DateRangePicker } from './components/ui/date-range-picker';
 
 // Safely render any value coming from contact_data
 const renderValue = (value: any, fieldName?: string): React.ReactNode => {
@@ -78,7 +79,8 @@ const App: React.FC = () => {
   const [patientsLoading, setPatientsLoading] = React.useState(true);
   const [patientsError, setPatientsError] = React.useState<string | null>(null);
   const [searchQuery, setSearchQuery] = React.useState('');
-  const [dateFilter, setDateFilter] = React.useState<string>('all');
+  const [dateFilter, setDateFilter] = React.useState<string>('week');
+  const [customDateRange, setCustomDateRange] = React.useState<{ from: Date | null, to: Date | null }>({ from: null, to: null });
   const [contactDetails, setContactDetails] = React.useState<Record<string, ContactDetailsResponse>>({});
   const [loadingDetails, setLoadingDetails] = React.useState<Set<string>>(new Set());
   const [showDetailsModal, setShowDetailsModal] = React.useState(false);
@@ -105,7 +107,7 @@ const App: React.FC = () => {
   const patientsPerPage = 20;
 
   // Function to fetch patients from API
-  const fetchPatients = async (filter?: string) => {
+  const fetchPatients = async (filter?: string, customRange?: { from: Date | null, to: Date | null }) => {
     try {
       setPatientsLoading(true);
       setPatientsError(null);
@@ -116,9 +118,9 @@ const App: React.FC = () => {
         providerName = user.name;
       }
 
-      console.log('Fetching patients for user:', user?.name, 'Admin:', user?.admin_access, 'Filter:', filter);
+      console.log('Fetching patients for user:', user?.name, 'Admin:', user?.admin_access, 'Filter:', filter, 'Custom Range:', customRange);
       const filterParam = filter && filter !== 'all' ? filter : null;
-      const response = await getPatients(providerName, filterParam);
+      const response = await getPatients(providerName, filterParam, customRange);
       setPatientsData(response);
       setPatients(response.patients);
       setTotalPatients(response.total_patients);
@@ -133,7 +135,7 @@ const App: React.FC = () => {
   // Load patients when component mounts
   React.useEffect(() => {
     if (isAuthenticated && user) {
-      fetchPatients(dateFilter);
+      fetchPatients(dateFilter, customDateRange);
       // Show welcome card for new login/signup
       setShowWelcomeCard(true);
       // Hide welcome card after 5 seconds
@@ -146,10 +148,10 @@ const App: React.FC = () => {
   // Fetch patients when filter changes
   React.useEffect(() => {
     if (isAuthenticated && user) {
-      fetchPatients(dateFilter);
+      fetchPatients(dateFilter, customDateRange);
       setCurrentPage(1); // Reset to first page when filter changes
     }
-  }, [dateFilter]);
+  }, [dateFilter, customDateRange]);
 
   const handleAuthSuccess = () => {
     // Authentication is now handled by the context
@@ -366,45 +368,64 @@ const App: React.FC = () => {
 
                       {/* Date Filter Tabs */}
                       <div className="mb-6">
-                        <Tabs value={dateFilter} onValueChange={setDateFilter}>
-                          <TabsList className="grid w-full grid-cols-5 bg-gradient-to-r from-primary-50 to-secondary-50 border border-primary-100 p-1 rounded-xl shadow-sm">
-                            <TabsTrigger
-                              value="all"
-                              className="flex items-center justify-center space-x-2 text-sm font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary-500 data-[state=active]:to-secondary-500 data-[state=active]:text-white data-[state=active]:shadow-md hover:bg-white/50 rounded-lg"
-                            >
-                              <Icon icon="lucide:users" className="w-4 h-4" />
-                              <span>All Patients</span>
-                            </TabsTrigger>
-                            <TabsTrigger
-                              value="today"
-                              className="flex items-center justify-center space-x-2 text-sm font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary-500 data-[state=active]:to-secondary-500 data-[state=active]:text-white data-[state=active]:shadow-md hover:bg-white/50 rounded-lg"
-                            >
-                              <Icon icon="lucide:calendar-days" className="w-4 h-4" />
-                              <span>Today</span>
-                            </TabsTrigger>
-                            <TabsTrigger
-                              value="week"
-                              className="flex items-center justify-center space-x-2 text-sm font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary-500 data-[state=active]:to-secondary-500 data-[state=active]:text-white data-[state=active]:shadow-md hover:bg-white/50 rounded-lg"
-                            >
-                              <Icon icon="lucide:calendar-range" className="w-4 h-4" />
-                              <span>Last 7 Days</span>
-                            </TabsTrigger>
-                            <TabsTrigger
-                              value="month"
-                              className="flex items-center justify-center space-x-2 text-sm font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary-500 data-[state=active]:to-secondary-500 data-[state=active]:text-white data-[state=active]:shadow-md hover:bg-white/50 rounded-lg"
-                            >
-                              <Icon icon="lucide:calendar" className="w-4 h-4" />
-                              <span>Last 30 Days</span>
-                            </TabsTrigger>
-                            <TabsTrigger
-                              value="year"
-                              className="flex items-center justify-center space-x-2 text-sm font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary-500 data-[state=active]:to-secondary-500 data-[state=active]:text-white data-[state=active]:shadow-md hover:bg-white/50 rounded-lg"
-                            >
-                              <Icon icon="lucide:calendar-clock" className="w-4 h-4" />
-                              <span>Last 365 Days</span>
-                            </TabsTrigger>
-                          </TabsList>
-                        </Tabs>
+                        <div className="flex flex-col space-y-4">
+                          {/* Quick Filter Tabs */}
+                          <Tabs value={dateFilter} onValueChange={(value) => {
+                            setDateFilter(value);
+                            if (value !== 'custom') {
+                              setCustomDateRange({ from: null, to: null });
+                            }
+                          }}>
+                            <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-primary-50 to-secondary-50 border border-primary-100 p-1 rounded-xl shadow-sm">
+                              <TabsTrigger
+                                value="today"
+                                className="flex items-center justify-center space-x-2 text-sm font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary-500 data-[state=active]:to-secondary-500 data-[state=active]:text-white data-[state=active]:shadow-md hover:bg-white/50 rounded-lg"
+                              >
+                                <Icon icon="lucide:calendar-days" className="w-4 h-4" />
+                                <span>Today</span>
+                              </TabsTrigger>
+                              <TabsTrigger
+                                value="week"
+                                className="flex items-center justify-center space-x-2 text-sm font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary-500 data-[state=active]:to-secondary-500 data-[state=active]:text-white data-[state=active]:shadow-md hover:bg-white/50 rounded-lg"
+                              >
+                                <Icon icon="lucide:calendar-range" className="w-4 h-4" />
+                                <span>Last 7 Days</span>
+                              </TabsTrigger>
+                              <TabsTrigger
+                                value="month"
+                                className="flex items-center justify-center space-x-2 text-sm font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary-500 data-[state=active]:to-secondary-500 data-[state=active]:text-white data-[state=active]:shadow-md hover:bg-white/50 rounded-lg"
+                              >
+                                <Icon icon="lucide:calendar" className="w-4 h-4" />
+                                <span>Last 30 Days</span>
+                              </TabsTrigger>
+                            </TabsList>
+                          </Tabs>
+
+                          {/* Custom Date Range Picker */}
+                          <div className="flex items-center space-x-4">
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="radio"
+                                id="custom-range"
+                                name="date-filter"
+                                checked={dateFilter === 'custom'}
+                                onChange={() => setDateFilter('custom')}
+                                className="w-4 h-4 text-primary-600 border-gray-300 focus:ring-primary-500"
+                              />
+                              <label htmlFor="custom-range" className="text-sm font-medium text-gray-700">
+                                Custom Date Range:
+                              </label>
+                            </div>
+                            <DateRangePicker
+                              value={customDateRange}
+                              onChange={(range) => {
+                                setCustomDateRange(range);
+                                setDateFilter('custom');
+                              }}
+                              className="flex-1 max-w-md"
+                            />
+                          </div>
+                        </div>
                       </div>
 
                       {/* Premium Compact Table Design */}
