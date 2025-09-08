@@ -87,6 +87,61 @@ export const signup = async (name: string, email: string, password: string, admi
     return response.json();
 };
 
+export const providerSignup = async (email: string, username: string, password: string, provider_tag: string) => {
+    // Validate all parameters are provided
+    if (!email || !username || !password || !provider_tag) {
+        console.error('Missing required parameters:', { email: !!email, username: !!username, password: !!password, provider_tag: !!provider_tag });
+        throw new Error('All fields are required for provider signup');
+    }
+
+    const requestPayload = {
+        email,
+        username,
+        password,
+        provider_tag,
+    };
+
+    console.log('Provider signup request payload:', requestPayload);
+    console.log('Provider tag value:', provider_tag);
+    console.log('Provider tag type:', typeof provider_tag);
+    console.log('Provider tag length:', provider_tag.length);
+    console.log('API endpoint:', `${API_BASE_URL}/auth/provider-signup`);
+    console.log('JSON stringified payload:', JSON.stringify(requestPayload));
+
+    const response = await fetch(`${API_BASE_URL}/auth/provider-signup`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestPayload),
+    });
+
+    console.log('Provider signup response status:', response.status);
+    console.log('Provider signup response headers:', Object.fromEntries(response.headers.entries()));
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Provider signup error response:', errorData);
+
+        // Check if the error is specifically about provider_tag
+        if (errorData.detail && Array.isArray(errorData.detail)) {
+            const providerTagError = errorData.detail.find((error: any) =>
+                error.loc && error.loc.includes('provider_tag')
+            );
+            if (providerTagError) {
+                console.error('Provider tag validation error:', providerTagError);
+                throw new Error('Provider tag is required and cannot be empty');
+            }
+        }
+
+        throw new Error(errorData.detail || 'Provider signup failed');
+    }
+
+    const data = await response.json();
+    console.log('Provider signup success response:', data);
+    return data;
+};
+
 export const logout = async () => {
     try {
         // Call the backend logout endpoint
@@ -501,4 +556,33 @@ export const resetPassword = async (token: string, newPassword: string) => {
     const data = await response.json();
     console.log('Reset password API Success Response:', data);
     return data;
+};
+
+// Function to export contacts as Excel file
+export const exportContacts = async (contactIds: string[]): Promise<Blob> => {
+    console.log('Exporting contacts with IDs:', contactIds);
+    console.log('API endpoint:', `${API_BASE_URL}/provider/export-contacts`);
+
+    if (!contactIds || contactIds.length === 0) {
+        throw new Error('No contact IDs provided for export');
+    }
+
+    const response = await apiCall('/provider/export-contacts', {
+        method: 'POST',
+        body: JSON.stringify(contactIds),
+    });
+
+    console.log('Export contacts response status:', response.status);
+    console.log('Export contacts response headers:', Object.fromEntries(response.headers.entries()));
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Export contacts error response:', errorData);
+        throw new Error(errorData.detail || 'Failed to export contacts');
+    }
+
+    // Get the blob from the response
+    const blob = await response.blob();
+    console.log('Export contacts success - blob size:', blob.size, 'bytes');
+    return blob;
 }; 

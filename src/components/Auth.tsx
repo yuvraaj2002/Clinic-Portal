@@ -26,6 +26,7 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
         if (error) setError('');
     };
 
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
@@ -98,6 +99,7 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
             setIsLoading(false);
         }
     };
+
 
     const handleBackToLogin = () => {
         setView('login');

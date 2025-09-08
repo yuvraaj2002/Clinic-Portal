@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { Card, CardBody, Input, Button } from "@heroui/react";
 import { Icon } from "@iconify/react";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://ohc-backend.blyssbot.com';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 
 interface SetPasswordProps {
     onAuthSuccess: () => void;
@@ -14,6 +14,7 @@ interface UserData {
     last_name: string;
     username: string;
     type: string;
+    provider_tag?: string;
 }
 
 const SetPassword: React.FC<SetPasswordProps> = ({ onAuthSuccess }) => {
@@ -59,6 +60,7 @@ const SetPassword: React.FC<SetPasswordProps> = ({ onAuthSuccess }) => {
             const userEmail = payload.email || payload.sub || payload.user_email;
             const username = payload.username || payload.user_username || '';
             const userType = payload.type || payload.user_type || 'user';
+            const providerTag = payload.provider_tag || payload.providerTag || '';
 
             // Extract name from various possible fields
             const firstName = payload.first_name || payload.firstName || payload.given_name || payload.name?.split(' ')[0] || '';
@@ -68,6 +70,7 @@ const SetPassword: React.FC<SetPasswordProps> = ({ onAuthSuccess }) => {
             console.log('Extracted email:', userEmail);
             console.log('Extracted username:', username);
             console.log('Extracted type:', userType);
+            console.log('Extracted provider_tag:', providerTag);
             console.log('Extracted firstName:', firstName);
             console.log('Extracted lastName:', lastName);
             console.log('Extracted fullName:', fullName);
@@ -83,7 +86,8 @@ const SetPassword: React.FC<SetPasswordProps> = ({ onAuthSuccess }) => {
                     first_name: firstName,
                     last_name: lastName,
                     username: username,
-                    type: userType
+                    type: userType,
+                    provider_tag: providerTag
                 });
             } else {
                 throw new Error('Email not found in token');
@@ -127,26 +131,51 @@ const SetPassword: React.FC<SetPasswordProps> = ({ onAuthSuccess }) => {
             return;
         }
 
+        // Validate that provider_tag is available
+        if (!userData?.provider_tag) {
+            setPasswordError('Provider tag is missing from the invitation link. Please contact your administrator.');
+            return;
+        }
+
         setIsLoading(true);
         try {
+            const requestPayload = {
+                username: userData?.username || email.split('@')[0],
+                email: email,
+                password: formData.newPassword,
+                provider_tag: userData?.provider_tag || '',
+                admin_access: userData?.type === 'admin',
+                name: providerName || (userData?.first_name && userData?.last_name
+                    ? `${userData.first_name} ${userData.last_name}`.trim()
+                    : userData?.first_name || userData?.last_name || email.split('@')[0] || 'New Provider'),
+            };
+
+            console.log('SetPassword API request payload:', requestPayload);
+            console.log('Provider tag being sent:', userData?.provider_tag);
+
             const response = await fetch(`${API_BASE_URL}/auth/provider-signup`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    username: userData?.username || email.split('@')[0],
-                    email: email,
-                    password: formData.newPassword,
-                    admin_access: userData?.type === 'admin',
-                    name: providerName || (userData?.first_name && userData?.last_name
-                        ? `${userData.first_name} ${userData.last_name}`.trim()
-                        : userData?.first_name || userData?.last_name || email.split('@')[0] || 'New Provider'),
-                }),
+                body: JSON.stringify(requestPayload),
             });
 
             if (!response.ok) {
                 const errorData = await response.json();
+                console.error('SetPassword API error response:', errorData);
+
+                // Check for specific validation errors
+                if (errorData.detail && Array.isArray(errorData.detail)) {
+                    const providerTagError = errorData.detail.find((error: any) =>
+                        error.loc && error.loc.includes('provider_tag')
+                    );
+                    if (providerTagError) {
+                        console.error('Provider tag validation error:', providerTagError);
+                        throw new Error('Provider tag is required and cannot be empty');
+                    }
+                }
+
                 throw new Error(errorData.detail || 'Failed to set password.');
             }
 

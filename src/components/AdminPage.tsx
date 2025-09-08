@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardBody, Button } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import { useAuth } from '../contexts/AuthContext';
-import { getAllProviders, getActiveNonAdminProviders, getPatients, getContactDetails, updateContactAdmin, PatientsResponse, ContactDetailsResponse } from '../utils/api';
+import { getAllProviders, getActiveNonAdminProviders, getPatients, getContactDetails, updateContactAdmin, exportContacts, PatientsResponse, ContactDetailsResponse } from '../utils/api';
 
 // Safely render any value coming from contact_data
 const renderValue = (value: any, fieldName?: string): React.ReactNode => {
@@ -78,6 +78,11 @@ const AdminPage: React.FC = () => {
     const [isEditMode, setIsEditMode] = React.useState(false);
     const [editedPatientData, setEditedPatientData] = React.useState<any>(null);
     const [savingChanges, setSavingChanges] = React.useState(false);
+
+    // Export functionality state
+    const [isExporting, setIsExporting] = React.useState(false);
+    const [exportError, setExportError] = React.useState<string | null>(null);
+    const [showExportModal, setShowExportModal] = React.useState(false);
 
     // Fetch providers data when component mounts
     React.useEffect(() => {
@@ -260,6 +265,52 @@ const AdminPage: React.FC = () => {
         }
     };
 
+    // Export functionality for admin
+    const handleAdminExport = async () => {
+        const patientsToExport = filteredAdminPatients?.patients || adminPatients?.patients || [];
+
+        if (patientsToExport.length === 0) {
+            setExportError('No patients to export');
+            return;
+        }
+
+        setIsExporting(true);
+        setExportError(null);
+
+        try {
+            // Collect all contact IDs from current patients
+            const contactIds = patientsToExport.map(patient => patient.contact.id);
+            console.log('Admin exporting contacts with IDs:', contactIds);
+
+            // Call the export API
+            const blob = await exportContacts(contactIds);
+
+            // Create download link
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+
+            // Generate filename with provider info
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+            const providerInfo = selectedProvider ? selectedProvider.replace(/\s+/g, '_') : 'all_providers';
+            link.download = `admin_patients_${providerInfo}_${timestamp}.xlsx`;
+
+            // Trigger download
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+
+            // Show success modal
+            setShowExportModal(true);
+        } catch (error) {
+            console.error('Admin export failed:', error);
+            setExportError(error instanceof Error ? error.message : 'Export failed');
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-background to-white font-sans">
             <div className="container mx-auto px-6 py-8 max-w-7xl">
@@ -268,6 +319,24 @@ const AdminPage: React.FC = () => {
                     <div>
                         <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Admin Dashboard</h1>
                         <p className="text-gray-600 text-sm mt-1">Welcome, {user?.name} - Administrative Control Panel</p>
+                    </div>
+                    <div className="flex space-x-3">
+                        {/* Export Button */}
+                        <Button
+                            onClick={handleAdminExport}
+                            disabled={isExporting || (!filteredAdminPatients?.patients?.length && !adminPatients?.patients?.length)}
+                            className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-semibold px-4 py-2 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                            size="sm"
+                            startContent={
+                                isExporting ? (
+                                    <Icon icon="lucide:loader-2" className="w-4 h-4 animate-spin" />
+                                ) : (
+                                    <Icon icon="lucide:download" className="w-4 h-4" />
+                                )
+                            }
+                        >
+                            {isExporting ? 'Exporting...' : 'Export Excel'}
+                        </Button>
                     </div>
                 </div>
 
@@ -952,6 +1021,65 @@ const AdminPage: React.FC = () => {
                     </div>
                 )}
             </div>
+
+            {/* Export Success Modal */}
+            {showExportModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
+                        <div className="text-center">
+                            <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                                <Icon icon="lucide:check" className="w-8 h-8 text-white" />
+                            </div>
+                            <h3 className="text-xl font-bold text-gray-800 mb-2">Export Successful!</h3>
+                            <p className="text-gray-600 text-sm mb-4">
+                                Your Excel file has been downloaded successfully.
+                            </p>
+                            <p className="text-gray-500 text-xs mb-6">
+                                {(filteredAdminPatients?.patients?.length || adminPatients?.patients?.length || 0)} patients exported
+                                {selectedProvider && ` for ${selectedProvider}`}
+                            </p>
+                            <Button
+                                onClick={() => setShowExportModal(false)}
+                                className="bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-primary-600 hover:to-secondary-600 text-white font-semibold px-6 py-2 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
+                            >
+                                Close
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Export Error Display */}
+            {exportError && (
+                <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-right duration-300">
+                    <Card className="bg-gradient-to-r from-red-500/90 to-pink-500/90 backdrop-blur-sm border-0 shadow-2xl rounded-2xl overflow-hidden min-w-80">
+                        <CardBody className="p-6">
+                            <div className="flex items-center space-x-4">
+                                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                                    <Icon icon="lucide:alert-circle" className="w-6 h-6 text-white" />
+                                </div>
+                                <div className="flex-1">
+                                    <h3 className="text-lg font-bold text-white mb-1">
+                                        Export Failed
+                                    </h3>
+                                    <p className="text-white/80 text-sm">
+                                        {exportError}
+                                    </p>
+                                </div>
+                                <Button
+                                    isIconOnly
+                                    variant="light"
+                                    size="sm"
+                                    className="text-white hover:bg-white/20"
+                                    onClick={() => setExportError(null)}
+                                >
+                                    <Icon icon="lucide:x" className="w-4 h-4" />
+                                </Button>
+                            </div>
+                        </CardBody>
+                    </Card>
+                </div>
+            )}
         </div>
     );
 };
