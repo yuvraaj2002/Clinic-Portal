@@ -16,7 +16,35 @@ import { DateRangePicker } from './components/ui/date-range-picker';
 const renderValue = (value: any, fieldName?: string): React.ReactNode => {
   if (value === null || value === undefined) return <span className="text-gray-500 text-sm">Not available</span>;
 
-  // Special handling for Invoice/Receipt field
+  // Special handling for Invoice/Receipts field with new structure
+  if (fieldName === "Invoice/Receipts" && Array.isArray(value)) {
+    if (value.length === 0) return <span className="text-gray-500 text-sm">No receipts available</span>;
+
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {value.map((receipt, index) => (
+          <div key={index} className="group relative bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg hover:border-primary-300 transition-all duration-300 cursor-pointer">
+            <div className="flex flex-col items-center text-center">
+              <h4 className="font-semibold text-gray-900 text-base mb-4 group-hover:text-primary-600 transition-colors duration-200">
+                {receipt.original_name}
+              </h4>
+              <a
+                href={receipt.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center px-6 py-3 bg-primary-500 text-white text-sm font-medium rounded-lg hover:bg-primary-600 transition-colors duration-200 shadow-sm hover:shadow-md"
+              >
+                <Icon icon="lucide:external-link" className="w-4 h-4 mr-2" />
+                View Document
+              </a>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // Legacy handling for old Invoice/Receipt field (string URL)
   if (fieldName === "Invoice/Receipt" && typeof value === 'string' && (value.startsWith('http://') || value.startsWith('https://'))) {
     return (
       <div className="flex items-center space-x-2">
@@ -322,11 +350,10 @@ const App: React.FC = () => {
               <Navbar maxWidth="full" className="bg-white border-b border-gray-100 shadow-sm">
                 <NavbarBrand className="px-6">
                   <div className="flex items-center space-x-3">
-                    <img
-                      src="/ohc-logo-full.png"
-                      alt="OHC Pharmacy Logo"
-                      className="h-8 w-auto"
-                    />
+                    <div className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center">
+                      <Icon icon="lucide:rocket" className="w-4 h-4 text-white" />
+                    </div>
+                    <h1 className="font-bold text-foreground text-xl tracking-tight">OHC Pharmacy</h1>
                   </div>
                 </NavbarBrand>
                 <NavbarContent justify="end" className="px-6">
@@ -693,10 +720,6 @@ const App: React.FC = () => {
                                     <span className="text-sm font-medium text-gray-600 block mb-1">Payment Amount:</span>
                                     <p className="text-gray-900">{formatCurrency(contactDetails[selectedPatient.opportunity_id]?.contact_data?.["Payment Amount"])}</p>
                                   </div>
-                                  <div>
-                                    <span className="text-sm font-medium text-gray-600 block mb-1">Invoice/Receipt:</span>
-                                    <p className="text-gray-900">{renderValue(contactDetails[selectedPatient.opportunity_id]?.contact_data?.["Invoice/Receipt"], "Invoice/Receipt")}</p>
-                                  </div>
                                 </div>
                                 <div className="space-y-4">
                                   <div>
@@ -745,6 +768,30 @@ const App: React.FC = () => {
                               </div>
                             </div>
                           </div>
+
+                          {/* Invoice/Receipts Section */}
+                          {(() => {
+                            const contactData = contactDetails[selectedPatient.opportunity_id]?.contact_data;
+                            const receipts = contactData?.["Invoice/Receipts"] || contactData?.["Invoice/Receipt"];
+
+                            if (receipts && Array.isArray(receipts) && receipts.length > 0) {
+                              return (
+                                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                                  <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                                    <h3 className="text-xl font-bold text-gray-900 flex items-center">
+                                      <Icon icon="lucide:file-text" className="w-5 h-5 mr-2 text-primary-600" />
+                                      Invoice & Receipts
+                                    </h3>
+                                    <p className="text-gray-600 text-sm mt-1">Download or view your documents</p>
+                                  </div>
+                                  <div className="p-6">
+                                    {renderValue(receipts, "Invoice/Receipts")}
+                                  </div>
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()}
                         </div>
                       ) : (
                         <div className="flex items-center justify-center py-12 text-red-600">

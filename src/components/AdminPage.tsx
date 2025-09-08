@@ -8,7 +8,48 @@ import { getAllProviders, getActiveNonAdminProviders, getPatients, getContactDet
 const renderValue = (value: any, fieldName?: string): React.ReactNode => {
     if (value === null || value === undefined) return <span className="text-gray-500 text-sm">Not available</span>;
 
-    // Special handling for Invoice/Receipt field
+    // Special handling for Invoice/Receipts field with new structure
+    if (fieldName === "Invoice/Receipts") {
+        console.log('Invoice/Receipts field detected:', { value, fieldName, isArray: Array.isArray(value) });
+
+        if (Array.isArray(value)) {
+            if (value.length === 0) return <span className="text-gray-500 text-sm">No receipts available</span>;
+
+            return (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {value.map((receipt, index) => (
+                        <div key={index} className="group relative bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg hover:border-primary-300 transition-all duration-300 cursor-pointer">
+                            <div className="flex flex-col items-center text-center">
+                                <h4 className="font-semibold text-gray-900 text-base mb-4 group-hover:text-primary-600 transition-colors duration-200">
+                                    {receipt.original_name}
+                                </h4>
+                                <a
+                                    href={receipt.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center px-6 py-3 bg-primary-500 text-white text-sm font-medium rounded-lg hover:bg-primary-600 transition-colors duration-200 shadow-sm hover:shadow-md"
+                                >
+                                    <Icon icon="lucide:external-link" className="w-4 h-4 mr-2" />
+                                    View Document
+                                </a>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            );
+        } else {
+            // If it's not an array, show debug info
+            return (
+                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-sm text-yellow-800">Debug: Invoice/Receipts is not an array</p>
+                    <p className="text-xs text-yellow-600">Type: {typeof value}</p>
+                    <p className="text-xs text-yellow-600">Value: {JSON.stringify(value)}</p>
+                </div>
+            );
+        }
+    }
+
+    // Legacy handling for old Invoice/Receipt field (string URL)
     if (fieldName === "Invoice/Receipt" && typeof value === 'string' && (value.startsWith('http://') || value.startsWith('https://'))) {
         return (
             <div className="flex items-center space-x-2">
@@ -857,6 +898,7 @@ const AdminPage: React.FC = () => {
                                             </div>
                                         </div>
 
+
                                         {/* Order & Payment Information */}
                                         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
                                             <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
@@ -892,19 +934,6 @@ const AdminPage: React.FC = () => {
                                                                 />
                                                             ) : (
                                                                 <p className="text-gray-900">{formatCurrency(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.["Payment Amount"])}</p>
-                                                            )}
-                                                        </div>
-                                                        <div>
-                                                            <span className="text-sm font-medium text-gray-600 block mb-1">Invoice/Receipt:</span>
-                                                            {isEditMode ? (
-                                                                <input
-                                                                    type="text"
-                                                                    value={editedPatientData?.["Invoice/Receipt"] || ''}
-                                                                    onChange={(e) => handleFieldChange('Invoice/Receipt', e.target.value)}
-                                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                                                />
-                                                            ) : (
-                                                                <p className="text-gray-900">{renderValue(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.["Invoice/Receipt"], "Invoice/Receipt")}</p>
                                                             )}
                                                         </div>
                                                     </div>
@@ -1009,6 +1038,30 @@ const AdminPage: React.FC = () => {
                                                 </div>
                                             </div>
                                         </div>
+
+                                        {/* Invoice/Receipts Section */}
+                                        {(() => {
+                                            const contactData = adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data;
+                                            const receipts = contactData?.["Invoice/Receipts"] || contactData?.["Invoice/Receipt"];
+
+                                            if (receipts && Array.isArray(receipts) && receipts.length > 0) {
+                                                return (
+                                                    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                                                        <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                                                            <h3 className="text-xl font-bold text-gray-900 flex items-center">
+                                                                <Icon icon="lucide:file-text" className="w-5 h-5 mr-2 text-primary-600" />
+                                                                Invoice & Receipts
+                                                            </h3>
+                                                            <p className="text-gray-600 text-sm mt-1">Download or view patient documents</p>
+                                                        </div>
+                                                        <div className="p-6">
+                                                            {renderValue(receipts, "Invoice/Receipts")}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            }
+                                            return null;
+                                        })()}
                                     </div>
                                 ) : (
                                     <div className="flex items-center justify-center py-12 text-red-600">

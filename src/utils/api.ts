@@ -237,7 +237,8 @@ export interface ContactData {
     "Shipping Status": FlexibleValue;
     "Tracking Number": FlexibleValue;
     "Date Delivered": FlexibleValue;
-    "Invoice/Receipt": FlexibleValue;
+    "Invoice/Receipt": FlexibleValue; // Legacy field
+    "Invoice/Receipts": FlexibleValue; // New field with array structure
     "Pickup or Delivery": FlexibleValue;
 }
 
