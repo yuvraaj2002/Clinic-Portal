@@ -1,5 +1,5 @@
 import React from 'react';
-import { Navbar, NavbarBrand, NavbarContent, Input, Button, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Pagination, Card, CardBody } from "@heroui/react";
+import { Navbar, NavbarBrand, NavbarContent, Input, Button, Pagination, Card, CardBody } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import { BrowserRouter as Router, Route, Switch } from 'react-router-dom';
 import Auth from './components/Auth';
@@ -7,79 +7,10 @@ import SetPassword from './components/SetPassword';
 import ResetPassword from './components/ResetPassword';
 import AdminPage from './components/AdminPage';
 import { useAuth } from './contexts/AuthContext';
-import { getPatients, getContactDetails, exportContacts, Patient, ContactDetailsResponse, PatientsResponse } from './utils/api';
-import { DateDisplay } from './components/ui/date-display';
+import { getPatients, getContactReceipts, PatientData, PatientsResponse, ReceiptData } from './utils/api';
 import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs';
 import { DateRangePicker } from './components/ui/date-range-picker';
 
-// Safely render any value coming from contact_data
-const renderValue = (value: any, fieldName?: string): React.ReactNode => {
-  if (value === null || value === undefined) return <span className="text-gray-500 text-sm">Not available</span>;
-
-  // Special handling for Invoice/Receipts field with new structure
-  if (fieldName === "Invoice/Receipts" && Array.isArray(value)) {
-    if (value.length === 0) return <span className="text-gray-500 text-sm">No receipts available</span>;
-
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {value.map((receipt, index) => (
-          <div key={index} className="group relative bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg hover:border-primary-300 transition-all duration-300 cursor-pointer">
-            <div className="flex flex-col items-center text-center">
-              <h4 className="font-semibold text-gray-900 text-base mb-4 group-hover:text-primary-600 transition-colors duration-200">
-                {receipt.original_name}
-              </h4>
-              <a
-                href={receipt.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center px-6 py-3 bg-primary-500 text-white text-sm font-medium rounded-lg hover:bg-primary-600 transition-colors duration-200 shadow-sm hover:shadow-md"
-              >
-                <Icon icon="lucide:external-link" className="w-4 h-4 mr-2" />
-                View Document
-              </a>
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  // Legacy handling for old Invoice/Receipt field (string URL)
-  if (fieldName === "Invoice/Receipt" && typeof value === 'string' && (value.startsWith('http://') || value.startsWith('https://'))) {
-    return (
-      <div className="flex items-center space-x-2">
-        <Icon icon="lucide:file-text" className="w-4 h-4 text-primary-600" />
-        <a
-          href={value}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-primary-600 hover:text-primary-800 underline font-medium"
-        >
-          View Invoice/Receipt
-        </a>
-      </div>
-    );
-  }
-
-  // Handle arrays more elegantly
-  if (Array.isArray(value)) {
-    if (value.length === 0) return <span className="text-gray-500 text-sm">None</span>;
-    if (value.length === 1) return String(value[0]);
-    return (
-      <div className="flex flex-wrap gap-1">
-        {value.map((item, index) => (
-          <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
-            {String(item)}
-          </span>
-        ))}
-      </div>
-    );
-  }
-
-  if (typeof value === 'string' || typeof value === 'number') return String(value);
-  if (typeof value === 'object') return <span className="text-gray-700 text-sm break-all">{JSON.stringify(value)}</span>;
-  return String(value);
-};
 
 // Format currency amounts with proper dollar sign and decimal formatting
 const formatCurrency = (value: any): string => {
@@ -95,6 +26,61 @@ const formatCurrency = (value: any): string => {
   return 'Not available';
 };
 
+// Format date strings properly
+const formatDate = (dateString: string): string => {
+  if (!dateString) return 'Not available';
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  } catch {
+    return dateString;
+  }
+};
+
+// Get payment status display value and color
+const getPaymentStatusDisplay = (status: string | string[]): { text: string; color: string } => {
+  let statusText = '';
+  if (Array.isArray(status)) {
+    statusText = status[0] || 'Unknown';
+  } else {
+    statusText = status || 'Unknown';
+  }
+
+  switch (statusText.toLowerCase()) {
+    case 'paid':
+      return { text: 'Paid', color: 'bg-green-100 text-green-800 border-green-200' };
+    case 'pending':
+      return { text: 'Pending', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' };
+    case 'failed':
+    case 'declined':
+      return { text: 'Failed', color: 'bg-red-100 text-red-800 border-red-200' };
+    default:
+      return { text: statusText, color: 'bg-gray-100 text-gray-800 border-gray-200' };
+  }
+};
+
+// Get shipping status display value and color
+const getShippingStatusDisplay = (status: string): { text: string; color: string } => {
+  switch (status?.toLowerCase()) {
+    case 'delivered':
+      return { text: 'Delivered', color: 'bg-green-100 text-green-800 border-green-200' };
+    case 'shipped':
+      return { text: 'Shipped', color: 'bg-blue-100 text-blue-800 border-blue-200' };
+    case 'processing':
+      return { text: 'Processing', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' };
+    case 'pending':
+      return { text: 'Pending', color: 'bg-orange-100 text-orange-800 border-orange-200' };
+    default:
+      return { text: status || 'Unknown', color: 'bg-gray-100 text-gray-800 border-gray-200' };
+  }
+};
+
+
 const App: React.FC = () => {
   const { isAuthenticated, user, loading, logout } = useAuth();
   const [currentPage, setCurrentPage] = React.useState(1);
@@ -102,17 +88,18 @@ const App: React.FC = () => {
 
   // State for API data
   const [patientsData, setPatientsData] = React.useState<PatientsResponse | null>(null);
-  const [patients, setPatients] = React.useState<Patient[]>([]);
+  const [patients, setPatients] = React.useState<PatientData[]>([]);
   const [totalPatients, setTotalPatients] = React.useState(0);
   const [patientsLoading, setPatientsLoading] = React.useState(true);
   const [patientsError, setPatientsError] = React.useState<string | null>(null);
   const [searchQuery, setSearchQuery] = React.useState('');
-  const [dateFilter, setDateFilter] = React.useState<string>('week');
+  const [dateFilter, setDateFilter] = React.useState<string>('month');
   const [customDateRange, setCustomDateRange] = React.useState<{ from: Date | null, to: Date | null }>({ from: null, to: null });
-  const [contactDetails, setContactDetails] = React.useState<Record<string, ContactDetailsResponse>>({});
-  const [loadingDetails, setLoadingDetails] = React.useState<Set<string>>(new Set());
   const [showDetailsModal, setShowDetailsModal] = React.useState(false);
-  const [selectedPatient, setSelectedPatient] = React.useState<Patient | null>(null);
+  const [selectedPatient, setSelectedPatient] = React.useState<PatientData | null>(null);
+  const [receipts, setReceipts] = React.useState<ReceiptData[]>([]);
+  const [receiptsLoading, setReceiptsLoading] = React.useState(false);
+  const [receiptsError, setReceiptsError] = React.useState<string | null>(null);
 
   // Export functionality state
   const [isExporting, setIsExporting] = React.useState(false);
@@ -139,21 +126,98 @@ const App: React.FC = () => {
   });
   const patientsPerPage = 20;
 
+  // Function to create Excel-compatible HTML content from patient data
+  const createExcelFromPatientData = (patientData: PatientData[]): string => {
+    if (patientData.length === 0) return '';
+
+    // Define Excel headers
+    const headers = [
+      'Patient Name',
+      'Email',
+      'Phone Number',
+      'DOB',
+      'Date Ordered',
+      'Order Type',
+      'Medication Ordered',
+      'Payment Status',
+      'Payment Amount',
+      'Shipping Payment',
+      'Shipping Status',
+      'Tracking Number',
+      'Date Delivered',
+      'Pickup or Delivery',
+      'Referred By',
+      'Patient Shipping Address',
+      'Contact ID'
+    ];
+
+    // Create Excel rows
+    const rows = patientData.map(patient => [
+      patient["Patient Name"] || '',
+      patient.Email || '',
+      patient["Phone Number"] || '',
+      patient.DOB || '',
+      formatDate(patient["Date Ordered"]) || '',
+      patient["Order Type"] || '',
+      patient["Medication Ordered"] || '',
+      Array.isArray(patient["Payment Status"]) ? patient["Payment Status"].join(', ') : patient["Payment Status"] || '',
+      formatCurrency(patient["Payment Amount"]) || '',
+      formatCurrency(patient["Shipping Payment"]) || '',
+      patient["Shipping Status"] || '',
+      patient["Tracking Number"] || '',
+      formatDate(patient["Date Delivered"]) || '',
+      patient["Pickup or Delivery"] || '',
+      patient["Referred By"] || '',
+      patient["Patient Shipping Address"] || '',
+      patient.contact_id || ''
+    ]);
+
+    // Create HTML table that Excel can open
+    const htmlContent = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+        <head>
+          <meta charset="utf-8">
+          <meta name="ExcelCreated" content="true">
+          <meta name="ProgId" content="Excel.Sheet">
+          <meta name="Generator" content="Microsoft Excel 11">
+          <style>
+            table { border-collapse: collapse; width: 100%; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; font-weight: bold; }
+            .number { text-align: right; }
+          </style>
+        </head>
+        <body>
+          <table>
+            <thead>
+              <tr>
+                ${headers.map(header => `<th>${header}</th>`).join('')}
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.map(row => `
+                <tr>
+                  ${row.map(cell => `<td>${cell}</td>`).join('')}
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    return htmlContent;
+  };
+
   // Function to fetch patients from API
   const fetchPatients = async (filter?: string, customRange?: { from: Date | null, to: Date | null }) => {
     try {
       setPatientsLoading(true);
       setPatientsError(null);
 
-      // For non-admin users, use their name as provider parameter
-      let providerName;
-      if (user && !user.admin_access) {
-        providerName = user.name;
-      }
-
       console.log('Fetching patients for user:', user?.name, 'Admin:', user?.admin_access, 'Filter:', filter, 'Custom Range:', customRange);
       const filterParam = filter && filter !== 'all' ? filter : null;
-      const response = await getPatients(providerName, filterParam, customRange);
+      const response = await getPatients(filterParam, customRange);
       setPatientsData(response);
       setPatients(response.patients);
       setTotalPatients(response.total_patients);
@@ -219,48 +283,49 @@ const App: React.FC = () => {
     closeSidebar();
   };
 
-  const openDetailsModal = async (patient: Patient) => {
+  const openDetailsModal = async (patient: PatientData) => {
     setSelectedPatient(patient);
     setShowDetailsModal(true);
 
-    // Fetch contact details if not already loaded
-    if (!contactDetails[patient.opportunity_id]) {
-      await fetchContactDetails(patient.opportunity_id, patient.contact.id);
+    // Fetch receipts using the contact_id
+    if (patient.contact_id) {
+      await fetchReceipts(patient.contact_id);
+    } else {
+      setReceipts([]);
+      setReceiptsError('Contact ID is missing from patient data.');
     }
   };
 
   const closeDetailsModal = () => {
     setShowDetailsModal(false);
     setSelectedPatient(null);
+    setReceipts([]);
+    setReceiptsError(null);
   };
 
-  const fetchContactDetails = async (opportunityId: string, contactId: string) => {
-    // Don't fetch if already loaded
-    if (contactDetails[opportunityId]) return;
-
+  const fetchReceipts = async (contactId: string) => {
     try {
-      setLoadingDetails(prev => new Set(prev).add(opportunityId));
-      const response = await getContactDetails(contactId);
-      setContactDetails(prev => ({
-        ...prev,
-        [opportunityId]: response
-      }));
+      setReceiptsLoading(true);
+      setReceiptsError(null);
+
+      console.log('Fetching receipts for contact ID:', contactId);
+      const response = await getContactReceipts(contactId);
+      console.log('Receipts response:', response);
+      setReceipts(response.receipts);
     } catch (error) {
-      console.error('Failed to fetch contact details:', error);
+      console.error('Failed to fetch receipts:', error);
+      setReceiptsError(error instanceof Error ? error.message : 'Failed to fetch receipts');
+      setReceipts([]);
     } finally {
-      setLoadingDetails(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(opportunityId);
-        return newSet;
-      });
+      setReceiptsLoading(false);
     }
   };
 
   // Filter patients based on search query
   const filteredPatients = patients.filter(patient =>
-    patient.contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (patient.contact.phone && patient.contact.phone.includes(searchQuery)) ||
-    (patient.contact.email && patient.contact.email.toLowerCase().includes(searchQuery.toLowerCase()))
+    patient["Patient Name"].toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (patient["Phone Number"] && patient["Phone Number"].includes(searchQuery)) ||
+    (patient.Email && patient.Email.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const totalPages = Math.ceil(filteredPatients.length / patientsPerPage);
@@ -278,12 +343,13 @@ const App: React.FC = () => {
     setExportError(null);
 
     try {
-      // Collect all contact IDs from current patients
-      const contactIds = patients.map(patient => patient.contact.id);
-      console.log('Exporting contacts with IDs:', contactIds);
+      console.log('Exporting patients data:', patients);
 
-      // Call the export API
-      const blob = await exportContacts(contactIds);
+      // Create Excel-compatible HTML content from the patient data
+      const excelContent = createExcelFromPatientData(patients);
+      const blob = new Blob([excelContent], {
+        type: 'application/vnd.ms-excel;charset=utf-8;'
+      });
 
       // Create download link
       const url = window.URL.createObjectURL(blob);
@@ -295,7 +361,7 @@ const App: React.FC = () => {
       const filterInfo = dateFilter === 'custom'
         ? 'custom-range'
         : dateFilter;
-      link.download = `patients_${filterInfo}_${timestamp}.xlsx`;
+      link.download = `patients_${filterInfo}_${timestamp}.xls`;
 
       // Trigger download
       document.body.appendChild(link);
@@ -523,100 +589,157 @@ const App: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Premium Compact Table Design */}
-                      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                        <Table
-                          aria-label="Patients table"
-                          removeWrapper
-                          classNames={{
-                            wrapper: "bg-white",
-                            thead: "bg-background",
-                            th: "bg-background text-foreground font-semibold text-xs uppercase tracking-wider py-3 px-4 border-b border-border",
-                            td: "py-3 px-4 border-b border-border text-foreground text-sm",
-                            tr: "hover:bg-primary-50 transition-colors duration-200",
-                          }}
-                        >
-                          <TableHeader>
-                            <TableColumn className="font-semibold">FULL NAME</TableColumn>
-                            <TableColumn className="font-semibold">DATE</TableColumn>
-                            <TableColumn className="font-semibold">DETAILS</TableColumn>
-                          </TableHeader>
-                          <TableBody>
-                            {patientsLoading ? (
-                              <TableRow>
-                                <TableCell colSpan={3} className="text-center py-8">
-                                  <div className="flex items-center justify-center">
-                                    <Icon icon="lucide:loader-2" className="w-6 h-6 animate-spin text-primary-600 mr-2" />
-                                    <span className="text-gray-600">Loading patients...</span>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            ) : patientsError ? (
-                              <TableRow>
-                                <TableCell colSpan={3} className="text-center py-8">
-                                  <div className="flex items-center justify-center text-red-600">
-                                    <Icon icon="lucide:alert-circle" className="w-6 h-6 mr-2" />
-                                    <span>{patientsError}</span>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            ) : currentPatients.length === 0 ? (
-                              <TableRow>
-                                <TableCell colSpan={3} className="text-center py-8">
-                                  <div className="flex items-center justify-center text-gray-600">
-                                    <Icon icon="lucide:users" className="w-6 h-6 mr-2" />
-                                    <span>No patients found</span>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            ) : (
-                              currentPatients.map((patient) => (
-                                <TableRow key={patient.opportunity_id} className="hover:bg-primary-50 transition-colors duration-200">
-                                  <TableCell className="font-medium">{patient.contact.name}</TableCell>
-                                  <TableCell>
-                                    {patient.contact.date ? (
-                                      <DateDisplay date={patient.contact.date} format="short" />
-                                    ) : (
-                                      <span className="text-xs text-gray-400">No Date</span>
-                                    )}
-                                  </TableCell>
-                                  <TableCell>
-                                    <Button
-                                      size="sm"
-                                      variant="light"
-                                      className="bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-primary-600 hover:to-secondary-600 text-white"
-                                      startContent={<Icon icon="lucide:eye" className="w-4 h-4" />}
-                                      onClick={() => openDetailsModal(patient)}
-                                    >
-                                      Details
-                                    </Button>
-                                  </TableCell>
-                                </TableRow>
-                              ))
-                            )}
-                          </TableBody>
-                        </Table>
-
-                        {/* Premium Pagination */}
-                        <div className="flex justify-between items-center px-6 py-4 bg-gray-50 border-t border-gray-100">
-                          <div className="text-sm text-gray-600">
-                            Showing {startIndex + 1} to {Math.min(startIndex + patientsPerPage, filteredPatients.length)} of {filteredPatients.length} patients
-                            {searchQuery && ` (search filtered)`}
-                            {patientsData?.filter_applied && ` (${patientsData.filter_applied} filter applied)`}
+                      {/* Patient Cards Grid */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {patientsLoading ? (
+                          <div className="col-span-full flex items-center justify-center py-12">
+                            <div className="flex items-center">
+                              <Icon icon="lucide:loader-2" className="w-6 h-6 animate-spin text-primary-600 mr-2" />
+                              <span className="text-gray-600">Loading patients...</span>
+                            </div>
                           </div>
-                          <Pagination
-                            total={totalPages}
-                            page={currentPage}
-                            onChange={setCurrentPage}
-                            size="sm"
-                            showControls
-                            classNames={{
-                              wrapper: "gap-0 overflow-visible h-8",
-                              item: "w-8 h-8 text-small rounded-none bg-transparent text-muted hover:text-primary-600",
-                              cursor: "bg-gradient-to-r from-primary-500 to-secondary-500 text-white font-medium",
-                            }}
-                          />
+                        ) : patientsError ? (
+                          <div className="col-span-full flex items-center justify-center py-12 text-red-600">
+                            <Icon icon="lucide:alert-circle" className="w-6 h-6 mr-2" />
+                            <span>{patientsError}</span>
+                          </div>
+                        ) : currentPatients.length === 0 ? (
+                          <div className="col-span-full flex items-center justify-center py-12 text-gray-600">
+                            <Icon icon="lucide:users" className="w-6 h-6 mr-2" />
+                            <span>No patients found</span>
+                          </div>
+                        ) : (
+                          currentPatients.map((patient, index) => {
+                            const paymentStatus = getPaymentStatusDisplay(patient["Payment Status"]);
+                            const shippingStatus = getShippingStatusDisplay(patient["Shipping Status"]);
+
+                            return (
+                              <Card key={index} className="bg-white border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-200 group">
+                                <CardBody className="p-4">
+                                  {/* Header */}
+                                  <div className="flex items-start justify-between mb-3">
+                                    <div className="flex-1">
+                                      <h3 className="text-lg font-semibold text-gray-900 group-hover:text-primary-600 transition-colors duration-200">
+                                        {patient["Patient Name"] || 'Unknown Patient'}
+                                      </h3>
+                                      <p className="text-sm text-gray-600 mt-0.5">
+                                        {patient.Email || 'No email provided'}
+                                      </p>
+                                    </div>
+                                    <div className="ml-3">
+                                      <div className="w-10 h-10 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-full flex items-center justify-center shadow-sm">
+                                        <Icon icon="lucide:user" className="w-5 h-5 text-white" />
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Patient Info */}
+                                  <div className="space-y-2 mb-3">
+                                    <div className="flex items-center text-sm text-gray-600">
+                                      <Icon icon="lucide:calendar" className="w-4 h-4 mr-2 text-primary-500 flex-shrink-0" />
+                                      <span className="font-medium">Order Date:</span>
+                                      <span className="ml-1">{formatDate(patient["Date Ordered"])}</span>
+                                    </div>
+
+                                    <div className="flex items-center text-sm text-gray-600">
+                                      <Icon icon="lucide:phone" className="w-4 h-4 mr-2 text-primary-500 flex-shrink-0" />
+                                      <span className="font-medium">Phone:</span>
+                                      <span className="ml-1">{patient["Phone Number"] || 'Not provided'}</span>
+                                    </div>
+
+                                    <div className="flex items-start text-sm text-gray-600">
+                                      <Icon icon="lucide:package" className="w-4 h-4 mr-2 text-primary-500 flex-shrink-0 mt-0.5" />
+                                      <div className="flex-1">
+                                        <span className="font-medium">Medication:</span>
+                                        <span className="ml-1">{patient["Medication Ordered"] || 'Not specified'}</span>
+                                      </div>
+                                    </div>
+
+                                    <div className="flex items-center text-sm text-gray-600">
+                                      <Icon icon="lucide:shopping-cart" className="w-4 h-4 mr-2 text-primary-500 flex-shrink-0" />
+                                      <span className="font-medium">Order Type:</span>
+                                      <span className="ml-1">{patient["Order Type"] || 'Not specified'}</span>
+                                    </div>
+
+                                    <div className="flex items-center text-sm text-gray-600">
+                                      <Icon icon="lucide:calendar-days" className="w-4 h-4 mr-2 text-primary-500 flex-shrink-0" />
+                                      <span className="font-medium">DOB:</span>
+                                      <span className="ml-1">{patient.DOB || 'Not provided'}</span>
+                                    </div>
+
+                                    <div className="flex items-center text-sm text-gray-600">
+                                      <Icon icon="lucide:map-pin" className="w-4 h-4 mr-2 text-primary-500 flex-shrink-0" />
+                                      <span className="font-medium">Delivery:</span>
+                                      <span className="ml-1">{patient["Pickup or Delivery"] || 'Not specified'}</span>
+                                    </div>
+                                  </div>
+
+                                  {/* Status and Payment */}
+                                  <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center space-x-2">
+                                        <span className="text-sm font-medium text-gray-700">Payment:</span>
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${paymentStatus.color}`}>
+                                          {paymentStatus.text}
+                                        </span>
+                                      </div>
+                                      <div className="text-sm font-semibold text-primary-600">
+                                        {formatCurrency(patient["Payment Amount"])}
+                                      </div>
+                                    </div>
+
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center space-x-2">
+                                        <span className="text-sm font-medium text-gray-700">Shipping:</span>
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${shippingStatus.color}`}>
+                                          {shippingStatus.text}
+                                        </span>
+                                      </div>
+                                      <div className="text-sm text-gray-600">
+                                        {formatCurrency(patient["Shipping Payment"])}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Footer - Clickable Receipts Section */}
+                                  <div
+                                    className="mt-3 pt-3 border-t border-gray-100 cursor-pointer hover:bg-purple-50 -mx-4 px-4 py-1.5 transition-all duration-200 group/receipt"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openDetailsModal(patient);
+                                    }}
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-xs text-gray-500 group-hover/receipt:text-purple-600 transition-colors duration-200">View Invoices or Receipts</span>
+                                      <Icon icon="lucide:arrow-right" className="w-4 h-4 text-gray-400 group-hover/receipt:text-purple-500 transition-colors duration-200" />
+                                    </div>
+                                  </div>
+                                </CardBody>
+                              </Card>
+                            );
+                          })
+                        )}
+                      </div>
+
+                      {/* Pagination */}
+                      <div className="flex justify-between items-center mt-8 px-6 py-4 bg-gray-50 rounded-xl border border-gray-100">
+                        <div className="text-sm text-gray-600">
+                          Showing {startIndex + 1} to {Math.min(startIndex + patientsPerPage, filteredPatients.length)} of {filteredPatients.length} patients
+                          {searchQuery && ` (search filtered)`}
+                          {patientsData?.filter_applied && ` (${patientsData.filter_applied} filter applied)`}
                         </div>
+                        <Pagination
+                          total={totalPages}
+                          page={currentPage}
+                          onChange={setCurrentPage}
+                          size="sm"
+                          showControls
+                          classNames={{
+                            wrapper: "gap-0 overflow-visible h-8",
+                            item: "w-8 h-8 text-small rounded-none bg-transparent text-muted hover:text-primary-600",
+                            cursor: "bg-gradient-to-r from-primary-500 to-secondary-500 text-white font-medium",
+                          }}
+                        />
                       </div>
                     </main>
                   )}
@@ -631,8 +754,8 @@ const App: React.FC = () => {
                     <div className="bg-gradient-to-r from-primary-500 to-secondary-500 p-6 text-white">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h2 className="text-2xl font-bold">Patient Details</h2>
-                          <p className="text-white/80 mt-1">{selectedPatient.contact.name}</p>
+                          <h2 className="text-2xl font-bold">Invoices & Receipts</h2>
+                          <p className="text-white/80 mt-1">Patient: {selectedPatient["Patient Name"]}</p>
                         </div>
                         <Button
                           isIconOnly
@@ -646,159 +769,63 @@ const App: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Modal Body */}
+                    {/* Modal Body - Only Receipts */}
                     <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
-                      {loadingDetails.has(selectedPatient.opportunity_id) ? (
-                        <div className="flex items-center justify-center py-12">
-                          <Icon icon="lucide:loader-2" className="w-8 h-8 animate-spin text-primary-600 mr-3" />
-                          <span className="text-gray-600 font-medium text-lg">Loading patient details...</span>
+                      {/* Receipts Section */}
+                      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                        <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                          <h3 className="text-xl font-bold text-gray-900 flex items-center">
+                            <Icon icon="lucide:file-text" className="w-5 h-5 mr-2 text-primary-600" />
+                            Documents & Receipts
+                          </h3>
+                          <p className="text-gray-600 text-sm mt-1">Download or view patient documents</p>
                         </div>
-                      ) : contactDetails[selectedPatient.opportunity_id] ? (
-                        <div className="space-y-6">
-                          {/* Basic Information */}
-                          <div className="bg-gradient-to-r from-primary-50 to-secondary-50 p-6 rounded-xl">
-                            <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
-                              <Icon icon="lucide:user" className="w-5 h-5 mr-2 text-primary-600" />
-                              Basic Information
-                            </h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                              <div className="space-y-4">
-                                <div>
-                                  <span className="text-sm font-medium text-gray-600 block mb-1">Patient Name:</span>
-                                  <p className="text-lg font-semibold text-gray-900">{renderValue(contactDetails[selectedPatient.opportunity_id]?.contact_data?.["Patient Name"])}</p>
-                                </div>
-                                <div>
-                                  <span className="text-sm font-medium text-gray-600 block mb-1">Email:</span>
-                                  <p className="text-gray-900">{renderValue(contactDetails[selectedPatient.opportunity_id]?.contact_data?.Email)}</p>
-                                </div>
-                                <div>
-                                  <span className="text-sm font-medium text-gray-600 block mb-1">Phone Number:</span>
-                                  <p className="text-gray-900">{renderValue(contactDetails[selectedPatient.opportunity_id]?.contact_data?.["Phone Number"])}</p>
-                                </div>
-                                <div>
-                                  <span className="text-sm font-medium text-gray-600 block mb-1">Date of Birth:</span>
-                                  <p className="text-gray-900">{renderValue(contactDetails[selectedPatient.opportunity_id]?.contact_data?.DOB)}</p>
-                                </div>
-                              </div>
-                              <div className="space-y-4">
-                                <div>
-                                  <span className="text-sm font-medium text-gray-600 block mb-1">Order Type:</span>
-                                  <p className="text-gray-900">{renderValue(contactDetails[selectedPatient.opportunity_id]?.contact_data?.["Order Type"])}</p>
-                                </div>
-                                <div>
-                                  <span className="text-sm font-medium text-gray-600 block mb-1">Date Ordered:</span>
-                                  <p className="text-gray-900">{renderValue(contactDetails[selectedPatient.opportunity_id]?.contact_data?.["Date Ordered"])}</p>
-                                </div>
-                                <div>
-                                  <span className="text-sm font-medium text-gray-600 block mb-1">Medication Ordered:</span>
-                                  <p className="text-gray-900">{renderValue(contactDetails[selectedPatient.opportunity_id]?.contact_data?.["Medication Ordered"])}</p>
-                                </div>
-                                <div>
-                                  <span className="text-sm font-medium text-gray-600 block mb-1">Referred By:</span>
-                                  <p className="text-gray-900">{renderValue(contactDetails[selectedPatient.opportunity_id]?.contact_data?.["Referred By"])}</p>
-                                </div>
+                        <div className="p-6">
+                          {receiptsLoading ? (
+                            <div className="flex items-center justify-center py-12">
+                              <Icon icon="lucide:loader-2" className="w-8 h-8 animate-spin text-primary-600 mr-3" />
+                              <span className="text-gray-600 font-medium text-lg">Loading receipts...</span>
+                            </div>
+                          ) : receiptsError ? (
+                            <div className="flex items-center justify-center py-12 text-red-600">
+                              <Icon icon="lucide:alert-circle" className="w-8 h-8 mr-3" />
+                              <div className="text-center">
+                                <span className="text-lg font-medium block">Failed to load receipts</span>
+                                <span className="text-sm text-red-500 mt-1">{receiptsError}</span>
                               </div>
                             </div>
-                          </div>
-
-                          {/* Order & Payment Information */}
-                          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                            <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-                              <h3 className="text-xl font-bold text-gray-900 flex items-center">
-                                <Icon icon="lucide:credit-card" className="w-5 h-5 mr-2 text-primary-600" />
-                                Order & Payment Information
-                              </h3>
+                          ) : receipts.length === 0 ? (
+                            <div className="flex items-center justify-center py-12 text-gray-500">
+                              <Icon icon="lucide:file-x" className="w-8 h-8 mr-3" />
+                              <span className="text-lg">No receipts available for this patient</span>
                             </div>
-                            <div className="p-6">
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-4">
-                                  <div>
-                                    <span className="text-sm font-medium text-gray-600 block mb-1">Payment Status:</span>
-                                    <p className="text-gray-900">{renderValue(contactDetails[selectedPatient.opportunity_id]?.contact_data?.["Payment Status"])}</p>
-                                  </div>
-                                  <div>
-                                    <span className="text-sm font-medium text-gray-600 block mb-1">Payment Amount:</span>
-                                    <p className="text-gray-900">{formatCurrency(contactDetails[selectedPatient.opportunity_id]?.contact_data?.["Payment Amount"])}</p>
+                          ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                              {receipts.map((receipt, index) => (
+                                <div key={index} className="group relative bg-gradient-to-br from-gray-50 to-white border border-gray-200 rounded-xl p-6 hover:shadow-lg hover:border-primary-300 transition-all duration-300">
+                                  <div className="flex flex-col items-center text-center">
+                                    <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mb-4 group-hover:bg-primary-200 transition-colors duration-200">
+                                      <Icon icon="lucide:file-text" className="w-8 h-8 text-primary-600" />
+                                    </div>
+                                    <h4 className="font-semibold text-gray-900 text-base mb-4 group-hover:text-primary-600 transition-colors duration-200 break-words">
+                                      {receipt.original_name}
+                                    </h4>
+                                    <a
+                                      href={receipt.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center px-6 py-3 bg-primary-500 text-white text-sm font-medium rounded-lg hover:bg-primary-600 transition-colors duration-200 shadow-sm hover:shadow-md"
+                                    >
+                                      <Icon icon="lucide:external-link" className="w-4 h-4 mr-2" />
+                                      View Document
+                                    </a>
                                   </div>
                                 </div>
-                                <div className="space-y-4">
-                                  <div>
-                                    <span className="text-sm font-medium text-gray-600 block mb-1">Shipping Payment:</span>
-                                    <p className="text-gray-900">{formatCurrency(contactDetails[selectedPatient.opportunity_id]?.contact_data?.["Shipping Payment"])}</p>
-                                  </div>
-                                  <div>
-                                    <span className="text-sm font-medium text-gray-600 block mb-1">Pickup or Delivery:</span>
-                                    <p className="text-gray-900">{renderValue(contactDetails[selectedPatient.opportunity_id]?.contact_data?.["Pickup or Delivery"])}</p>
-                                  </div>
-                                </div>
-                              </div>
+                              ))}
                             </div>
-                          </div>
-
-                          {/* Shipping Information */}
-                          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                            <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-                              <h3 className="text-xl font-bold text-gray-900 flex items-center">
-                                <Icon icon="lucide:truck" className="w-5 h-5 mr-2 text-primary-600" />
-                                Shipping Information
-                              </h3>
-                            </div>
-                            <div className="p-6">
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-4">
-                                  <div>
-                                    <span className="text-sm font-medium text-gray-600 block mb-1">Shipping Status:</span>
-                                    <p className="text-gray-900">{renderValue(contactDetails[selectedPatient.opportunity_id]?.contact_data?.["Shipping Status"])}</p>
-                                  </div>
-                                  <div>
-                                    <span className="text-sm font-medium text-gray-600 block mb-1">Tracking Number:</span>
-                                    <p className="text-gray-900">{renderValue(contactDetails[selectedPatient.opportunity_id]?.contact_data?.["Tracking Number"])}</p>
-                                  </div>
-                                  <div>
-                                    <span className="text-sm font-medium text-gray-600 block mb-1">Date Delivered:</span>
-                                    <p className="text-gray-900">{renderValue(contactDetails[selectedPatient.opportunity_id]?.contact_data?.["Date Delivered"])}</p>
-                                  </div>
-                                </div>
-                                <div className="space-y-4">
-                                  <div>
-                                    <span className="text-sm font-medium text-gray-600 block mb-1">Patient Shipping Address:</span>
-                                    <p className="text-gray-900">{renderValue(contactDetails[selectedPatient.opportunity_id]?.contact_data?.["Patient Shipping Address"])}</p>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Invoice/Receipts Section */}
-                          {(() => {
-                            const contactData = contactDetails[selectedPatient.opportunity_id]?.contact_data;
-                            const receipts = contactData?.["Invoice/Receipts"] || contactData?.["Invoice/Receipt"];
-
-                            if (receipts && Array.isArray(receipts) && receipts.length > 0) {
-                              return (
-                                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                                  <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-                                    <h3 className="text-xl font-bold text-gray-900 flex items-center">
-                                      <Icon icon="lucide:file-text" className="w-5 h-5 mr-2 text-primary-600" />
-                                      Invoice & Receipts
-                                    </h3>
-                                    <p className="text-gray-600 text-sm mt-1">Download or view your documents</p>
-                                  </div>
-                                  <div className="p-6">
-                                    {renderValue(receipts, "Invoice/Receipts")}
-                                  </div>
-                                </div>
-                              );
-                            }
-                            return null;
-                          })()}
+                          )}
                         </div>
-                      ) : (
-                        <div className="flex items-center justify-center py-12 text-red-600">
-                          <Icon icon="lucide:alert-circle" className="w-8 h-8 mr-3" />
-                          <span className="text-lg">Failed to load patient details</span>
-                        </div>
-                      )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -984,63 +1011,67 @@ const App: React.FC = () => {
       </Switch>
 
       {/* Export Success Modal */}
-      {showExportModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                <Icon icon="lucide:check" className="w-8 h-8 text-white" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-800 mb-2">Export Successful!</h3>
-              <p className="text-gray-600 text-sm mb-4">
-                Your Excel file has been downloaded successfully.
-              </p>
-              <p className="text-gray-500 text-xs mb-6">
-                {patients?.length} patients exported with {dateFilter} filter
-              </p>
-              <Button
-                onClick={() => setShowExportModal(false)}
-                className="bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-primary-600 hover:to-secondary-600 text-white font-semibold px-6 py-2 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
-              >
-                Close
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Export Error Display */}
-      {exportError && (
-        <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-right duration-300">
-          <Card className="bg-gradient-to-r from-red-500/90 to-pink-500/90 backdrop-blur-sm border-0 shadow-2xl rounded-2xl overflow-hidden min-w-80">
-            <CardBody className="p-6">
-              <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                  <Icon icon="lucide:alert-circle" className="w-6 h-6 text-white" />
+      {
+        showExportModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                  <Icon icon="lucide:check" className="w-8 h-8 text-white" />
                 </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-bold text-white mb-1">
-                    Export Failed
-                  </h3>
-                  <p className="text-white/80 text-sm">
-                    {exportError}
-                  </p>
-                </div>
+                <h3 className="text-xl font-bold text-gray-800 mb-2">Export Successful!</h3>
+                <p className="text-gray-600 text-sm mb-4">
+                  Your Excel file has been downloaded successfully.
+                </p>
+                <p className="text-gray-500 text-xs mb-6">
+                  {patients?.length} patients exported with {dateFilter} filter
+                </p>
                 <Button
-                  isIconOnly
-                  variant="light"
-                  size="sm"
-                  className="text-white hover:bg-white/20"
-                  onClick={() => setExportError(null)}
+                  onClick={() => setShowExportModal(false)}
+                  className="bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-primary-600 hover:to-secondary-600 text-white font-semibold px-6 py-2 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
                 >
-                  <Icon icon="lucide:x" className="w-4 h-4" />
+                  Close
                 </Button>
               </div>
-            </CardBody>
-          </Card>
-        </div>
-      )}
-    </Router>
+            </div>
+          </div>
+        )
+      }
+
+      {/* Export Error Display */}
+      {
+        exportError && (
+          <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-right duration-300">
+            <Card className="bg-gradient-to-r from-red-500/90 to-pink-500/90 backdrop-blur-sm border-0 shadow-2xl rounded-2xl overflow-hidden min-w-80">
+              <CardBody className="p-6">
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                    <Icon icon="lucide:alert-circle" className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold text-white mb-1">
+                      Export Failed
+                    </h3>
+                    <p className="text-white/80 text-sm">
+                      {exportError}
+                    </p>
+                  </div>
+                  <Button
+                    isIconOnly
+                    variant="light"
+                    size="sm"
+                    className="text-white hover:bg-white/20"
+                    onClick={() => setExportError(null)}
+                  >
+                    <Icon icon="lucide:x" className="w-4 h-4" />
+                  </Button>
+                </div>
+              </CardBody>
+            </Card>
+          </div>
+        )
+      }
+    </Router >
   );
 };
 

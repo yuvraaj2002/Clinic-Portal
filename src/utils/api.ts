@@ -203,7 +203,7 @@ export const getTokenType = (): string | null => {
     return sessionStorage.getItem('token_type');
 };
 
-// Interface for the API response
+// Interface for the API response - Updated to match new provider-patients endpoint structure
 export interface PatientContact {
     id: string;
     name: string;
@@ -213,10 +213,37 @@ export interface PatientContact {
     tags?: string[];
 }
 
+// New interface for the updated patient data structure from provider-patients endpoint
+export interface PatientData {
+    Email: string | null;
+    "Date Ordered": string;
+    "Order Type": string;
+    "Patient Name": string;
+    DOB: string;
+    "Phone Number": string;
+    "Medication Ordered": string;
+    "Patient Shipping Address": string;
+    "Referred By": string;
+    "Payment Status": string | string[]; // Can be string or array like ["Paid"]
+    "Payment Amount": string | number;
+    "Shipping Payment": string | number;
+    "Shipping Status": string;
+    "Tracking Number": string;
+    "Date Delivered": string;
+    "Pickup or Delivery": string;
+    "Invoice/Receipt": string | Array<{
+        url: string;
+        original_name: string;
+    }>; // Can be empty string or array of file objects
+    contact_id: string; // Contact ID for fetching receipts - REQUIRED
+}
+
 export interface Patient {
     opportunity_id: string;
     contact: PatientContact;
     provider_name?: string;
+    // Add the detailed patient data directly from provider-patients endpoint
+    patient_data?: PatientData;
 }
 
 export type FlexibleValue = string | number | string[] | Record<string, any> | null | undefined;
@@ -266,39 +293,22 @@ export interface ContactDetailsResponse {
 
 export interface PatientsResponse {
     success: boolean;
-    provider_name: string;
-    pipeline_id: string;
+    provider_tag: string;
     filter_applied: string | null;
+    custom_date_range?: {
+        start_date: string;
+        end_date: string;
+    };
     total_patients: number;
-    patients: Patient[];
+    patients: PatientData[];
 }
 
 // Function to fetch patients from the API
-export const getPatients = async (providerName?: string, filter?: string | null, customDateRange?: { from: Date | null, to: Date | null }): Promise<PatientsResponse> => {
-    // If no provider name is provided, try to get it from session storage
-    let finalProviderName = providerName;
-
-    if (!finalProviderName) {
-        const userData = sessionStorage.getItem('userData');
-        if (userData) {
-            try {
-                const user = JSON.parse(userData);
-                finalProviderName = user.name;
-            } catch (error) {
-                console.error('Failed to parse user data:', error);
-            }
-        }
-    }
-
-    // Fallback to default if still no provider name
-    if (!finalProviderName) {
-        finalProviderName = "BridgeCreek Patient Tracker";
-    }
-
-    console.log('Fetching patients with provider name:', finalProviderName, 'and filter:', filter, 'custom range:', customDateRange);
+export const getPatients = async (filter?: string | null, customDateRange?: { from: Date | null, to: Date | null }): Promise<PatientsResponse> => {
+    console.log('Fetching patients with filter:', filter, 'custom range:', customDateRange);
 
     // Build endpoint with optional filter parameter
-    const params = new URLSearchParams({ provider_name: finalProviderName });
+    const params = new URLSearchParams();
     if (filter) {
         params.append('filter', filter);
     }
@@ -306,22 +316,11 @@ export const getPatients = async (providerName?: string, filter?: string | null,
         // Extract just the date part (YYYY-MM-DD) from Date objects
         const startDateOnly = extractDatePart(customDateRange.from);
         const endDateOnly = extractDatePart(customDateRange.to);
-        console.log('Original dates:', {
-            from: customDateRange.from.toISOString(),
-            to: customDateRange.to.toISOString(),
-            fromLocal: customDateRange.from.toLocaleDateString(),
-            toLocal: customDateRange.to.toLocaleDateString(),
-            fromDateOnly: customDateRange.from.toDateString(),
-            toDateOnly: customDateRange.to.toDateString()
-        });
-        console.log('Extracted date parts:', {
-            startDateOnly,
-            endDateOnly
-        });
         params.append('start_date', startDateOnly);
         params.append('end_date', endDateOnly);
     }
-    const endpoint = `/provider/provider-patients?${params.toString()}`;
+
+    const endpoint = `/provider/provider-patients${params.toString() ? `?${params.toString()}` : ''}`;
     console.log('API endpoint:', endpoint);
 
     const response = await apiCall(endpoint);
@@ -353,6 +352,37 @@ export const getContactDetails = async (contactId: string): Promise<ContactDetai
 
     const data = await response.json();
     console.log('Contact Details API Success Response:', data);
+    return data;
+};
+
+// Interface for receipt data
+export interface ReceiptData {
+    url: string;
+    original_name: string;
+}
+
+export interface ReceiptsResponse {
+    success: boolean;
+    receipts: ReceiptData[];
+    contact_id: string;
+}
+
+// Function to fetch receipts/invoices for a contact
+export const getContactReceipts = async (contactId: string): Promise<ReceiptsResponse> => {
+    console.log('Fetching receipts for contact ID:', contactId);
+    const endpoint = `/provider/contact-data?contact_id=${encodeURIComponent(contactId)}`;
+    console.log('Contact receipts API endpoint:', endpoint);
+
+    const response = await apiCall(endpoint);
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Contact Receipts API Error Response:', errorData);
+        throw new Error(errorData.detail || errorData.message || 'Failed to fetch contact receipts');
+    }
+
+    const data = await response.json();
+    console.log('Contact Receipts API Success Response:', data);
     return data;
 };
 
