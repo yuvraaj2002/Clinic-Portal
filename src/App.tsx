@@ -133,7 +133,6 @@ const App: React.FC = () => {
     // Define Excel headers
     const headers = [
       'Patient Name',
-      'Email',
       'Phone Number',
       'DOB',
       'Date Ordered',
@@ -154,7 +153,6 @@ const App: React.FC = () => {
     // Create Excel rows
     const rows = patientData.map(patient => [
       patient["Patient Name"] || '',
-      patient.Email || '',
       patient["Phone Number"] || '',
       patient.DOB || '',
       formatDate(patient["Date Ordered"]) || '',
@@ -324,8 +322,7 @@ const App: React.FC = () => {
   // Filter patients based on search query
   const filteredPatients = patients.filter(patient =>
     patient["Patient Name"].toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (patient["Phone Number"] && patient["Phone Number"].includes(searchQuery)) ||
-    (patient.Email && patient.Email.toLowerCase().includes(searchQuery.toLowerCase()))
+    (patient["Phone Number"] && patient["Phone Number"].includes(searchQuery))
   );
 
   const totalPages = Math.ceil(filteredPatients.length / patientsPerPage);
@@ -416,9 +413,11 @@ const App: React.FC = () => {
               <Navbar maxWidth="full" className="bg-white border-b border-gray-100 shadow-sm">
                 <NavbarBrand className="px-6">
                   <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center">
-                      <Icon icon="lucide:rocket" className="w-4 h-4 text-white" />
-                    </div>
+                    <img
+                      src="/ohc-logo.png"
+                      alt="OHC Pharmacy Logo"
+                      className="w-8 h-8 object-contain"
+                    />
                     <h1 className="font-bold text-foreground text-xl tracking-tight">OHC Pharmacy</h1>
                   </div>
                 </NavbarBrand>
@@ -622,9 +621,6 @@ const App: React.FC = () => {
                                       <h3 className="text-lg font-semibold text-gray-900 group-hover:text-primary-600 transition-colors duration-200">
                                         {patient["Patient Name"] || 'Unknown Patient'}
                                       </h3>
-                                      <p className="text-sm text-gray-600 mt-0.5">
-                                        {patient.Email || 'No email provided'}
-                                      </p>
                                     </div>
                                     <div className="ml-3">
                                       <div className="w-10 h-10 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-full flex items-center justify-center shadow-sm">
