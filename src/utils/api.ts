@@ -285,6 +285,16 @@ export interface ProvidersResponse {
     active_providers_count: number;
 }
 
+// Interface for the new active-non-admin-providers API response
+export interface ActiveNonAdminProvidersResponse {
+    success: boolean;
+    provider_tags: string[];
+    statistics: {
+        total_unique_provider_tags: number;
+        description: string;
+    };
+}
+
 export interface ContactDetailsResponse {
     success: boolean;
     contact_data: ContactData;
@@ -425,7 +435,7 @@ export const getAllProviders = async (): Promise<any> => {
 };
 
 // Function to fetch active non-admin providers (admin only)
-export const getActiveNonAdminProviders = async (): Promise<any> => {
+export const getActiveNonAdminProviders = async (): Promise<ActiveNonAdminProvidersResponse> => {
     console.log('Fetching active non-admin providers for admin user');
     const endpoint = '/provider/active-non-admin-providers';
     console.log('Active non-admin providers API endpoint:', endpoint);

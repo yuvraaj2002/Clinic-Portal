@@ -6,6 +6,7 @@ import Auth from './components/Auth';
 import SetPassword from './components/SetPassword';
 import ResetPassword from './components/ResetPassword';
 import AdminPage from './components/AdminPage';
+import ProviderPatientsPage from './components/ProviderPatientsPage';
 import { useAuth } from './contexts/AuthContext';
 import { getPatients, getContactReceipts, PatientData, PatientsResponse, ReceiptData } from './utils/api';
 import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs';
@@ -402,7 +403,9 @@ const App: React.FC = () => {
           <ResetPassword />
         </Route>
 
-
+        <Route path="/provider-patients/:providerTag">
+          <ProviderPatientsPage />
+        </Route>
 
         <Route path="/">
           {!isAuthenticated ? (
@@ -536,7 +539,7 @@ const App: React.FC = () => {
                               setCustomDateRange({ from: null, to: null });
                             }
                           }}>
-                            <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-primary-50 to-secondary-50 border border-primary-100 p-1 rounded-xl shadow-sm">
+                            <TabsList className="grid w-full grid-cols-4 bg-gradient-to-r from-primary-50 to-secondary-50 border border-primary-100 p-1 rounded-xl shadow-sm">
                               <TabsTrigger
                                 value="today"
                                 className="flex items-center justify-center space-x-2 text-sm font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary-500 data-[state=active]:to-secondary-500 data-[state=active]:text-white data-[state=active]:shadow-md hover:bg-white/50 rounded-lg"
@@ -549,14 +552,21 @@ const App: React.FC = () => {
                                 className="flex items-center justify-center space-x-2 text-sm font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary-500 data-[state=active]:to-secondary-500 data-[state=active]:text-white data-[state=active]:shadow-md hover:bg-white/50 rounded-lg"
                               >
                                 <Icon icon="lucide:calendar-range" className="w-4 h-4" />
-                                <span>Last 7 Days</span>
+                                <span>This Week</span>
                               </TabsTrigger>
                               <TabsTrigger
                                 value="month"
                                 className="flex items-center justify-center space-x-2 text-sm font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary-500 data-[state=active]:to-secondary-500 data-[state=active]:text-white data-[state=active]:shadow-md hover:bg-white/50 rounded-lg"
                               >
                                 <Icon icon="lucide:calendar" className="w-4 h-4" />
-                                <span>Last 30 Days</span>
+                                <span>This Month</span>
+                              </TabsTrigger>
+                              <TabsTrigger
+                                value="year"
+                                className="flex items-center justify-center space-x-2 text-sm font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary-500 data-[state=active]:to-secondary-500 data-[state=active]:text-white data-[state=active]:shadow-md hover:bg-white/50 rounded-lg"
+                              >
+                                <Icon icon="lucide:calendar-check" className="w-4 h-4" />
+                                <span>This Year</span>
                               </TabsTrigger>
                             </TabsList>
                           </Tabs>

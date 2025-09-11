@@ -1,1140 +1,139 @@
 import React from 'react';
-import { Card, CardBody, Button } from "@heroui/react";
+import { Button } from "@heroui/react";
 import { Icon } from "@iconify/react";
-import { useAuth } from '../contexts/AuthContext';
-import { getAllProviders, getActiveNonAdminProviders, getPatients, getContactDetails, updateContactAdmin, exportContacts, PatientsResponse, ContactDetailsResponse } from '../utils/api';
-
-// Safely render any value coming from contact_data
-const renderValue = (value: any, fieldName?: string): React.ReactNode => {
-    if (value === null || value === undefined) return <span className="text-gray-500 text-sm">Not available</span>;
-
-    // Special handling for Invoice/Receipts field with new structure
-    if (fieldName === "Invoice/Receipts") {
-        console.log('Invoice/Receipts field detected:', { value, fieldName, isArray: Array.isArray(value) });
-
-        if (Array.isArray(value)) {
-            if (value.length === 0) return <span className="text-gray-500 text-sm">No receipts available</span>;
-
-            return (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {value.map((receipt, index) => (
-                        <div key={index} className="group relative bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg hover:border-primary-300 transition-all duration-300 cursor-pointer">
-                            <div className="flex flex-col items-center text-center">
-                                <h4 className="font-semibold text-gray-900 text-base mb-4 group-hover:text-primary-600 transition-colors duration-200">
-                                    {receipt.original_name}
-                                </h4>
-                                <a
-                                    href={receipt.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center px-6 py-3 bg-primary-500 text-white text-sm font-medium rounded-lg hover:bg-primary-600 transition-colors duration-200 shadow-sm hover:shadow-md"
-                                >
-                                    <Icon icon="lucide:external-link" className="w-4 h-4 mr-2" />
-                                    View Document
-                                </a>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            );
-        } else {
-            // If it's not an array, show debug info
-            return (
-                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <p className="text-sm text-yellow-800">Debug: Invoice/Receipts is not an array</p>
-                    <p className="text-xs text-yellow-600">Type: {typeof value}</p>
-                    <p className="text-xs text-yellow-600">Value: {JSON.stringify(value)}</p>
-                </div>
-            );
-        }
-    }
-
-    // Legacy handling for old Invoice/Receipt field (string URL)
-    if (fieldName === "Invoice/Receipt" && typeof value === 'string' && (value.startsWith('http://') || value.startsWith('https://'))) {
-        return (
-            <div className="flex items-center space-x-2">
-                <Icon icon="lucide:file-text" className="w-4 h-4 text-primary-600" />
-                <a
-                    href={value}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary-600 hover:text-primary-800 underline font-medium"
-                >
-                    View Invoice/Receipt
-                </a>
-            </div>
-        );
-    }
-
-    // Handle arrays more elegantly
-    if (Array.isArray(value)) {
-        if (value.length === 0) return <span className="text-gray-500 text-sm">None</span>;
-        if (value.length === 1) return String(value[0]);
-        return (
-            <div className="flex flex-wrap gap-1">
-                {value.map((item, index) => (
-                    <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
-                        {String(item)}
-                    </span>
-                ))}
-            </div>
-        );
-    }
-
-    if (typeof value === 'string' || typeof value === 'number') return String(value);
-    if (typeof value === 'object') return <span className="text-gray-700 text-sm break-all">{JSON.stringify(value)}</span>;
-    return String(value);
-};
-
-// Format currency amounts with proper dollar sign and decimal formatting
-const formatCurrency = (value: any): string => {
-    if (value === null || value === undefined) return 'Not available';
-    if (typeof value === 'string') {
-        const numValue = parseFloat(value);
-        if (isNaN(numValue)) return value;
-        return `$${numValue.toFixed(2)}`;
-    }
-    if (typeof value === 'number') {
-        return `$${value.toFixed(2)}`;
-    }
-    return 'Not available';
-};
+import { useHistory } from 'react-router-dom';
+import { getActiveNonAdminProviders, ActiveNonAdminProvidersResponse } from '../utils/api';
+import AuthGuard from './AuthGuard';
 
 const AdminPage: React.FC = () => {
-    const { user } = useAuth();
-    const [allProvidersData, setAllProvidersData] = React.useState<any>(null);
+    const history = useHistory();
+    const [activeProvidersData, setActiveProvidersData] = React.useState<ActiveNonAdminProvidersResponse | null>(null);
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
-    const [selectedProvider, setSelectedProvider] = React.useState<string>('');
 
-
-    const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
-    const [adminPatients, setAdminPatients] = React.useState<PatientsResponse | null>(null);
-    const [filteredAdminPatients, setFilteredAdminPatients] = React.useState<PatientsResponse | null>(null);
-    const [loadingAdminPatients, setLoadingAdminPatients] = React.useState(false);
-    const [adminContactDetails, setAdminContactDetails] = React.useState<Record<string, ContactDetailsResponse>>({});
-    const [loadingAdminDetails, setLoadingAdminDetails] = React.useState<Set<string>>(new Set());
-    const [showAdminDetailsModal, setShowAdminDetailsModal] = React.useState(false);
-    const [selectedAdminPatient, setSelectedAdminPatient] = React.useState<any>(null);
-    const [isEditMode, setIsEditMode] = React.useState(false);
-    const [editedPatientData, setEditedPatientData] = React.useState<any>(null);
-    const [savingChanges, setSavingChanges] = React.useState(false);
-
-    // Export functionality state
-    const [isExporting, setIsExporting] = React.useState(false);
-    const [exportError, setExportError] = React.useState<string | null>(null);
-    const [showExportModal, setShowExportModal] = React.useState(false);
-
-    // Fetch providers data when component mounts
+    // Fetch active non-admin providers data when component mounts
     React.useEffect(() => {
-        const fetchProviders = async () => {
+        const fetchActiveProviders = async () => {
             try {
                 setLoading(true);
                 setError(null);
-
-                // Check if current user is admin and use appropriate endpoint
-                if (user?.provider_admin) {
-                    console.log('Current user is provider admin, fetching active non-admin providers');
-                    const data = await getActiveNonAdminProviders();
-                    setAllProvidersData(data); // Store providers for dropdown
-                } else {
-                    console.log('Current user is not provider admin, fetching all providers');
-                    const data = await getAllProviders();
-                    setAllProvidersData(data); // Store all providers for dropdown
-                }
+                console.log('Fetching active non-admin providers...');
+                const data = await getActiveNonAdminProviders();
+                console.log('Active providers data:', data);
+                setActiveProvidersData(data);
             } catch (err) {
-                console.error('Failed to fetch providers:', err);
+                console.error('Error fetching active providers:', err);
                 setError(err instanceof Error ? err.message : 'Failed to fetch providers');
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchProviders();
-        fetchAdminPatients(); // Fetch all patients for admin
-    }, [user]);
-
-    // Close dropdown when clicking outside
-    React.useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            const target = event.target as HTMLElement;
-            if (!target.closest('.dropdown-container')) {
-                setIsDropdownOpen(false);
-            }
-        };
-
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
+        fetchActiveProviders();
     }, []);
 
-    // Handle provider selection
-    const handleProviderChange = (providerName: string) => {
-        console.log('Selected provider name:', providerName);
-        setSelectedProvider(providerName);
-        setIsDropdownOpen(false);
-        if (providerName) {
-            // Fetch patients for the selected provider in the All Patients section
-            fetchAdminPatientsForProvider(providerName);
-        } else {
-            setFilteredAdminPatients(null); // Reset filtered patients when no provider is selected
-        }
-    };
-
-    // Fetch all patients for admin
-    const fetchAdminPatients = async () => {
-        try {
-            setLoadingAdminPatients(true);
-            const data = await getPatients(); // No provider name for admin - gets all patients
-            setAdminPatients(data);
-        } catch (err) {
-            console.error('Failed to fetch admin patients:', err);
-        } finally {
-            setLoadingAdminPatients(false);
-        }
-    };
-
-    // Fetch patients for a specific provider in the All Patients section
-    const fetchAdminPatientsForProvider = async (providerName: string) => {
-        try {
-            setLoadingAdminPatients(true);
-            const data = await getPatients(providerName); // Get patients for specific provider
-            setFilteredAdminPatients(data);
-        } catch (err) {
-            console.error('Failed to fetch admin patients for provider:', err);
-        } finally {
-            setLoadingAdminPatients(false);
-        }
-    };
-
-    // Fetch admin contact details
-    const fetchAdminContactDetails = async (opportunityId: string, contactId: string) => {
-        if (adminContactDetails[opportunityId]) return;
-
-        try {
-            setLoadingAdminDetails(prev => new Set(prev).add(opportunityId));
-            const response = await getContactDetails(contactId);
-            setAdminContactDetails(prev => ({
-                ...prev,
-                [opportunityId]: response
-            }));
-        } catch (error) {
-            console.error('Failed to fetch admin contact details:', error);
-        } finally {
-            setLoadingAdminDetails(prev => {
-                const newSet = new Set(prev);
-                newSet.delete(opportunityId);
-                return newSet;
-            });
-        }
-    };
-
-    // Handle admin patient details modal
-    const openAdminDetailsModal = async (patient: any) => {
-        setSelectedAdminPatient(patient);
-        setShowAdminDetailsModal(true);
-
-        if (!adminContactDetails[patient.opportunity_id]) {
-            await fetchAdminContactDetails(patient.opportunity_id, patient.contact.id);
-        }
-    };
-
-    const closeAdminDetailsModal = () => {
-        setShowAdminDetailsModal(false);
-        setSelectedAdminPatient(null);
-        setIsEditMode(false);
-        setEditedPatientData(null);
-    };
-
-    // Handle edit mode toggle
-    const toggleEditMode = () => {
-        if (!isEditMode) {
-            // Enter edit mode - copy current data
-            const currentData = adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data;
-            setEditedPatientData(JSON.parse(JSON.stringify(currentData))); // Deep copy
-        }
-        setIsEditMode(!isEditMode);
-    };
-
-    // Handle field value changes
-    const handleFieldChange = (fieldName: string, value: any) => {
-        setEditedPatientData((prev: any) => ({
-            ...prev,
-            [fieldName]: value
-        }));
-    };
-
-    // Save changes
-    const saveChanges = async () => {
-        if (!selectedAdminPatient || !editedPatientData) return;
-
-        try {
-            setSavingChanges(true);
-
-            // Prepare the update data according to the new API specification
-            const updateData: any = {};
-
-            // Map all the new fields directly
-            Object.keys(editedPatientData).forEach(key => {
-                if (editedPatientData[key] !== undefined) {
-                    updateData[key] = editedPatientData[key];
-                }
-            });
-
-            console.log('Accumulated changes:', updateData);
-
-            // Make the API call to the admin endpoint
-            await updateContactAdmin(selectedAdminPatient.contact.id, updateData);
-
-            // Update the local state with new data
-            setAdminContactDetails(prev => ({
-                ...prev,
-                [selectedAdminPatient.opportunity_id]: {
-                    ...prev[selectedAdminPatient.opportunity_id],
-                    contact_data: editedPatientData
-                }
-            }));
-
-            setIsEditMode(false);
-            setEditedPatientData(null);
-        } catch (error) {
-            console.error('Failed to save changes:', error);
-            alert('Failed to save changes. Please try again.');
-        } finally {
-            setSavingChanges(false);
-        }
-    };
-
-    // Export functionality for admin
-    const handleAdminExport = async () => {
-        const patientsToExport = filteredAdminPatients?.patients || adminPatients?.patients || [];
-
-        if (patientsToExport.length === 0) {
-            setExportError('No patients to export');
-            return;
-        }
-
-        setIsExporting(true);
-        setExportError(null);
-
-        try {
-            // Collect all contact IDs from current patients
-            const contactIds = patientsToExport.map(patient => patient.contact.id);
-            console.log('Admin exporting contacts with IDs:', contactIds);
-
-            // Call the export API
-            const blob = await exportContacts(contactIds);
-
-            // Create download link
-            const url = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-
-            // Generate filename with provider info
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-            const providerInfo = selectedProvider ? selectedProvider.replace(/\s+/g, '_') : 'all_providers';
-            link.download = `admin_patients_${providerInfo}_${timestamp}.xlsx`;
-
-            // Trigger download
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            window.URL.revokeObjectURL(url);
-
-            // Show success modal
-            setShowExportModal(true);
-        } catch (error) {
-            console.error('Admin export failed:', error);
-            setExportError(error instanceof Error ? error.message : 'Export failed');
-        } finally {
-            setIsExporting(false);
-        }
+    // Handle provider selection - navigate to patients page
+    const handleProviderChange = (providerTag: string) => {
+        console.log('Selected provider tag:', providerTag);
+        history.push(`/provider-patients/${encodeURIComponent(providerTag)}`);
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-background to-white font-sans">
-            <div className="container mx-auto px-6 py-8 max-w-7xl">
-                {/* Header */}
-                <div className="flex justify-between items-center mb-8">
-                    <div>
-                        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Admin Dashboard</h1>
-                        <p className="text-gray-600 text-sm mt-1">Welcome, {user?.name} - Administrative Control Panel</p>
+        <AuthGuard requireProviderAdmin={true}>
+            <div className="min-h-screen bg-gradient-to-br from-background to-white font-sans">
+                <div className="container mx-auto px-6 py-8 max-w-7xl">
+                    {/* Header */}
+                    <div className="mb-8">
+                        <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
+                        <p className="text-gray-600">Manage providers and view their patients</p>
                     </div>
-                    <div className="flex space-x-3">
-                        {/* Export Button */}
-                        <Button
-                            onClick={handleAdminExport}
-                            disabled={isExporting || (!filteredAdminPatients?.patients?.length && !adminPatients?.patients?.length)}
-                            className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-semibold px-4 py-2 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-                            size="sm"
-                            startContent={
-                                isExporting ? (
-                                    <Icon icon="lucide:loader-2" className="w-4 h-4 animate-spin" />
-                                ) : (
-                                    <Icon icon="lucide:download" className="w-4 h-4" />
-                                )
-                            }
-                        >
-                            {isExporting ? 'Exporting...' : 'Export Excel'}
-                        </Button>
-                    </div>
-                </div>
 
-                {/* Admin Content */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* System Overview Card */}
-                    <Card className="bg-gradient-to-br from-primary-50 to-secondary-50 border border-primary-100 shadow-sm hover:shadow-md transition-shadow rounded-xl">
-                        <CardBody className="p-6">
-                            <div className="flex items-center mb-4">
-                                <div className="w-12 h-12 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-xl flex items-center justify-center mr-4">
-                                    <Icon icon="lucide:activity" className="w-6 h-6 text-white" />
-                                </div>
-                                <div>
-                                    <h3 className="text-lg font-semibold text-gray-900">System Overview</h3>
-                                    <p className="text-gray-600 text-sm">Monitor system health</p>
-                                </div>
-                            </div>
-                            <div className="space-y-3">
-                                {loading ? (
-                                    <div className="flex items-center justify-center py-4">
-                                        <Icon icon="lucide:loader-2" className="w-4 h-4 animate-spin text-primary-600 mr-2" />
-                                        <span className="text-gray-600 text-sm">Loading...</span>
-                                    </div>
-                                ) : error ? (
-                                    <div className="flex items-center justify-center py-4 text-red-600">
-                                        <Icon icon="lucide:alert-circle" className="w-4 h-4 mr-2" />
-                                        <span className="text-sm">Error loading data</span>
-                                    </div>
-                                ) : (
-                                    <>
-                                        {user?.provider_admin ? (
-                                            // Admin user - show active non-admin providers stats
-                                            <>
-                                                <div className="flex justify-between items-center">
-                                                    <span className="text-gray-600">Active Non-Admin Providers</span>
-                                                    <span className="font-semibold text-primary-600">{allProvidersData?.statistics?.total_active_non_admin_providers || 0}</span>
-                                                </div>
-                                                <div className="flex justify-between items-center">
-                                                    <span className="text-gray-600">Description</span>
-                                                    <span className="font-semibold text-primary-600 text-xs">Active Non-Admin Only</span>
-                                                </div>
-                                            </>
-                                        ) : (
-                                            // Non-admin user - show all providers stats
-                                            <>
-                                                <div className="flex justify-between items-center">
-                                                    <span className="text-gray-600">Total Providers</span>
-                                                    <span className="font-semibold text-primary-600">{allProvidersData?.statistics?.total_providers || 0}</span>
-                                                </div>
-                                                <div className="flex justify-between items-center">
-                                                    <span className="text-gray-600">Active Providers</span>
-                                                    <span className="font-semibold text-primary-600">{allProvidersData?.statistics?.active_providers || 0}</span>
-                                                </div>
-                                                <div className="flex justify-between items-center">
-                                                    <span className="text-gray-600">Inactive Providers</span>
-                                                    <span className="font-semibold text-primary-600">{allProvidersData?.statistics?.inactive_providers || 0}</span>
-                                                </div>
-                                                <div className="flex justify-between items-center">
-                                                    <span className="text-gray-600">Admin Providers</span>
-                                                    <span className="font-semibold text-primary-600">{allProvidersData?.statistics?.admin_providers || 0}</span>
-                                                </div>
-                                                <div className="flex justify-between items-center">
-                                                    <span className="text-gray-600">Non-Admin Providers</span>
-                                                    <span className="font-semibold text-primary-600">{allProvidersData?.statistics?.non_admin_providers || 0}</span>
-                                                </div>
-                                            </>
-                                        )}
-                                    </>
-                                )}
-                            </div>
-                        </CardBody>
-                    </Card>
-
-
-
-                    {/* Recent Activity Card */}
-                    <Card className="bg-gradient-to-br from-primary-50 to-secondary-50 border border-primary-100 shadow-sm hover:shadow-md transition-shadow rounded-xl">
-                        <CardBody className="p-6">
-                            <div className="flex items-center mb-4">
-                                <div className="w-12 h-12 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-xl flex items-center justify-center mr-4">
-                                    <Icon icon="lucide:clock" className="w-6 h-6 text-white" />
-                                </div>
-                                <div>
-                                    <h3 className="text-lg font-semibold text-gray-900">Recent Activity</h3>
-                                    <p className="text-gray-600 text-sm">Latest system events</p>
-                                </div>
-                            </div>
-                            <div className="space-y-3">
-                                {loading ? (
-                                    <div className="flex items-center justify-center py-4">
-                                        <Icon icon="lucide:loader-2" className="w-4 h-4 animate-spin text-primary-600 mr-2" />
-                                        <span className="text-gray-600 text-sm">Loading...</span>
-                                    </div>
-                                ) : error ? (
-                                    <div className="flex items-center justify-center py-4 text-red-600">
-                                        <Icon icon="lucide:alert-circle" className="w-4 h-4 mr-2" />
-                                        <span className="text-sm">Error loading data</span>
-                                    </div>
-                                ) : allProvidersData?.providers && allProvidersData.providers.length > 0 ? (
-                                    allProvidersData.providers.slice(0, 3).map((provider: any, index: number) => {
-                                        // Parse the created_at timestamp
-                                        const createdDate = new Date(provider.created_at);
-                                        const now = new Date();
-
-                                        // Calculate time difference in milliseconds
-                                        const diffInMs = now.getTime() - createdDate.getTime();
-
-                                        // Convert to different time units
-                                        const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
-                                        const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
-                                        const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
-
-                                        // Debug: Log the timestamp values
-                                        console.log('Provider:', provider.name);
-                                        console.log('Created at:', provider.created_at);
-                                        console.log('Parsed date:', createdDate);
-                                        console.log('Current time:', now);
-                                        console.log('Time difference (ms):', diffInMs);
-                                        console.log('Days:', diffInDays, 'Hours:', diffInHours, 'Minutes:', diffInMinutes);
-
-                                        // Format the time ago string
-                                        let timeAgo = '';
-                                        if (diffInMs < 0) {
-                                            // If negative (future date), show the actual date
-                                            timeAgo = createdDate.toLocaleDateString();
-                                        } else if (diffInMinutes < 1) {
-                                            timeAgo = 'Just now';
-                                        } else if (diffInMinutes < 60) {
-                                            timeAgo = `${diffInMinutes} min ago`;
-                                        } else if (diffInHours < 24) {
-                                            timeAgo = `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
-                                        } else {
-                                            timeAgo = `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
-                                        }
-
-                                        return (
-                                            <div key={provider.email} className="flex items-center space-x-3 text-sm">
-                                                <div className={`w-2 h-2 rounded-full ${index === 0 ? 'bg-green-500' : index === 1 ? 'bg-blue-500' : 'bg-yellow-500'}`}></div>
-                                                <span className="text-gray-600">{provider.username || provider.email} registered</span>
-                                                <span className="text-gray-400 text-xs">{timeAgo}</span>
-                                            </div>
-                                        );
-                                    })
-                                ) : (
-                                    <div className="text-gray-500 text-sm text-center py-2">No recent activity</div>
-                                )}
-                            </div>
-                        </CardBody>
-                    </Card>
-
-
-                </div>
-
-                {/* Provider Selection Dropdown */}
-                <div className="mt-8">
-                    <div className="bg-gradient-to-br from-primary-50 to-secondary-50 border border-primary-100 rounded-xl p-6 shadow-sm">
-                        <div className="flex items-center mb-6">
-                            <div className="w-10 h-10 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center mr-3">
-                                <Icon icon="lucide:users" className="w-5 h-5 text-white" />
-                            </div>
-                            <div>
-                                <h3 className="text-xl font-bold text-gray-900">Provider Management</h3>
-                                <p className="text-gray-600 text-sm">Select a provider to view their patients</p>
-                            </div>
+                    {/* Loading State */}
+                    {loading ? (
+                        <div className="text-center py-12">
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4"></div>
+                            <p className="text-gray-600">Loading providers...</p>
                         </div>
-
-                        {loading ? (
-                            <div className="flex items-center justify-center py-8">
-                                <Icon icon="lucide:loader-2" className="w-5 h-5 animate-spin text-primary-600 mr-2" />
-                                <span className="text-gray-600">Loading providers...</span>
-                            </div>
-                        ) : error ? (
-                            <div className="flex items-center justify-center py-8 text-red-600">
-                                <Icon icon="lucide:alert-circle" className="w-5 h-5 mr-2" />
-                                <span>Error loading providers</span>
-                            </div>
-                        ) : allProvidersData?.providers && allProvidersData.providers.length > 0 ? (
-                            <div className="space-y-6">
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-3">
-                                        Select Provider ({allProvidersData.providers.length} total)
-                                    </label>
-                                    <div className="relative dropdown-container">
-                                        {/* Custom Dropdown */}
-                                        <div
-                                            className="w-full px-4 py-3 border border-primary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white text-gray-900 cursor-pointer shadow-sm hover:border-primary-400 transition-colors duration-200 flex items-center justify-between"
-                                            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                                        >
-                                            <span className={selectedProvider ? "text-gray-900" : "text-gray-500"}>
-                                                {selectedProvider
-                                                    ? selectedProvider
-                                                    : "Choose a provider..."
-                                                }
-                                            </span>
-                                            <Icon
-                                                icon="lucide:chevron-down"
-                                                className={`w-4 h-4 text-primary-600 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}
-                                            />
-                                        </div>
-
-                                        {/* Dropdown Options */}
-                                        {isDropdownOpen && (
-                                            <div className="absolute z-10 w-full mt-1 bg-white border border-primary-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                                                {allProvidersData.providers.filter((provider: any) => provider.is_provider === true).map((provider: any) => (
-                                                    <div
-                                                        key={provider.email}
-                                                        className="px-4 py-3 hover:bg-primary-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors duration-200"
-                                                        onClick={() => handleProviderChange(provider.username || provider.email)}
-                                                    >
-                                                        <div className="flex items-center">
-                                                            <Icon icon="lucide:user" className="w-4 h-4 text-primary-600 mr-3" />
-                                                            <div>
-                                                                <div className="font-medium text-gray-900">{provider.username || provider.email}</div>
-                                                                <div className="text-sm text-gray-500">{provider.email}</div>
-                                                            </div>
-                                                            {provider.is_active && (
-                                                                <Icon icon="lucide:check-circle" className="w-4 h-4 text-green-500 ml-auto" />
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-
-
-
-
-                            </div>
-                        ) : (
-                            <div className="text-center py-8 text-gray-500">
-                                <Icon icon="lucide:users" className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-                                <p>No providers found</p>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* Admin Patients Table */}
-                <div className="mt-8">
-                    <div className="bg-gradient-to-br from-primary-50 to-secondary-50 border border-primary-100 rounded-xl p-6 shadow-sm">
-                        <div className="flex items-center mb-6">
-                            <div className="w-10 h-10 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center mr-3">
-                                <Icon icon="lucide:users" className="w-5 h-5 text-white" />
-                            </div>
-                            <div>
-                                <h3 className="text-xl font-bold text-gray-900">
-                                    {filteredAdminPatients ? `${filteredAdminPatients.provider_name} - Patients` : 'All Patients'}
-                                </h3>
-                                <p className="text-gray-600 text-sm">
-                                    {filteredAdminPatients
-                                        ? `View and manage patients for ${filteredAdminPatients.provider_name}`
-                                        : 'View and manage all patients in the system'
-                                    }
-                                </p>
-                            </div>
-                        </div>
-
-                        {loadingAdminPatients ? (
-                            <div className="flex items-center justify-center py-12">
-                                <Icon icon="lucide:loader-2" className="w-6 h-6 animate-spin text-primary-600 mr-3" />
-                                <span className="text-gray-600 font-medium">Loading all patients...</span>
-                            </div>
-                        ) : (filteredAdminPatients || adminPatients) ? (
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-between bg-white p-4 rounded-lg border border-primary-100">
-                                    <div>
-                                        <span className="text-sm font-medium text-gray-600">Total Patients:</span>
-                                        <span className="ml-2 text-lg font-bold text-primary-600">
-                                            {filteredAdminPatients ? filteredAdminPatients.patients.length : adminPatients?.total_patients}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        <span className="text-sm font-medium text-gray-600">Provider:</span>
-                                        <span className="ml-2 text-sm font-medium text-gray-900">
-                                            {filteredAdminPatients ? filteredAdminPatients.provider_name : adminPatients?.provider_name}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                {/* Patients Table */}
-                                <div className="bg-white rounded-lg border border-primary-100 shadow-sm overflow-hidden">
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full">
-                                            <thead className="bg-gray-50 border-b border-gray-200">
-                                                <tr>
-                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                        Full Name
-                                                    </th>
-                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-blue-100">
-                                                        📅 Date Added
-                                                    </th>
-                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                        Details
-                                                    </th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="bg-white divide-y divide-gray-200">
-                                                {(filteredAdminPatients || adminPatients)?.patients.map((patient) => {
-                                                    console.log('Patient data:', patient);
-                                                    console.log('Patient date:', patient.contact.date);
-                                                    return (
-                                                        <tr key={patient.opportunity_id} className="hover:bg-gray-50 transition-colors duration-200">
-                                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                                <div className="text-sm font-medium text-gray-900">{patient.contact.name}</div>
-                                                            </td>
-                                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                                <div className="text-sm text-gray-600 bg-blue-50 p-2 rounded">
-                                                                    📅 {patient.contact.date ? new Date(patient.contact.date).toLocaleDateString('en-US', {
-                                                                        year: 'numeric',
-                                                                        month: 'short',
-                                                                        day: 'numeric',
-                                                                        hour: '2-digit',
-                                                                        minute: '2-digit'
-                                                                    }) : 'No Date'}
-                                                                </div>
-                                                            </td>
-                                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                                <button
-                                                                    onClick={() => openAdminDetailsModal(patient)}
-                                                                    className="inline-flex items-center px-3 py-1 border border-primary-300 rounded-md text-xs font-medium text-primary-700 bg-white hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-200"
-                                                                >
-                                                                    <Icon icon="lucide:eye" className="w-3 h-3 mr-1" />
-                                                                    Details
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="text-center py-12 text-gray-500">
-                                <Icon icon="lucide:users" className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-                                <p>No patients found</p>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* Admin Patient Details Modal */}
-                {showAdminDetailsModal && selectedAdminPatient && (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-                        <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-                            {/* Modal Header */}
-                            <div className="bg-gradient-to-r from-primary-500 to-secondary-500 p-6 text-white">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <h2 className="text-2xl font-bold">Patient Details</h2>
-                                        <p className="text-white/80 mt-1">{selectedAdminPatient.contact.name}</p>
-                                    </div>
-                                    <div className="flex items-center space-x-2">
-                                        {!isEditMode ? (
-                                            <Button
-                                                size="sm"
-                                                variant="light"
-                                                className="bg-white text-primary-600 hover:bg-gray-100"
-                                                startContent={<Icon icon="lucide:edit" className="w-4 h-4" />}
-                                                onClick={toggleEditMode}
-                                            >
-                                                Edit
-                                            </Button>
-                                        ) : (
-                                            <div className="flex items-center space-x-2">
-                                                <Button
-                                                    size="sm"
-                                                    variant="light"
-                                                    className="bg-white text-primary-600 hover:bg-gray-100"
-                                                    startContent={<Icon icon="lucide:save" className="w-4 h-4" />}
-                                                    onClick={saveChanges}
-                                                    isLoading={savingChanges}
-                                                >
-                                                    Save
-                                                </Button>
-                                            </div>
-                                        )}
-                                        <Button
-                                            isIconOnly
-                                            variant="light"
-                                            size="sm"
-                                            className="text-white hover:bg-white/20"
-                                            onClick={closeAdminDetailsModal}
-                                        >
-                                            <Icon icon="lucide:x" className="w-5 h-5" />
-                                        </Button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Modal Body */}
-                            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
-                                {loadingAdminDetails.has(selectedAdminPatient.opportunity_id) ? (
-                                    <div className="flex items-center justify-center py-12">
-                                        <Icon icon="lucide:loader-2" className="w-8 h-8 animate-spin text-primary-600 mr-3" />
-                                        <span className="text-gray-600 font-medium text-lg">Loading patient details...</span>
-                                    </div>
-                                ) : adminContactDetails[selectedAdminPatient.opportunity_id] ? (
-                                    <div className="space-y-6">
-                                        {/* Basic Information */}
-                                        <div className="bg-gradient-to-r from-primary-50 to-secondary-50 p-6 rounded-xl">
-                                            <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
-                                                <Icon icon="lucide:user" className="w-5 h-5 mr-2 text-primary-600" />
-                                                Basic Information
-                                            </h3>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                <div className="space-y-4">
-                                                    <div>
-                                                        <span className="text-sm font-medium text-gray-600 block mb-1">Patient Name:</span>
-                                                        {isEditMode ? (
-                                                            <input
-                                                                type="text"
-                                                                value={editedPatientData?.["Patient Name"] || ''}
-                                                                onChange={(e) => handleFieldChange('Patient Name', e.target.value)}
-                                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                                            />
-                                                        ) : (
-                                                            <p className="text-lg font-semibold text-gray-900">{renderValue(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.["Patient Name"])}</p>
-                                                        )}
-                                                    </div>
-                                                    <div>
-                                                        <span className="text-sm font-medium text-gray-600 block mb-1">Email:</span>
-                                                        {isEditMode ? (
-                                                            <input
-                                                                type="email"
-                                                                value={editedPatientData?.Email || ''}
-                                                                onChange={(e) => handleFieldChange('Email', e.target.value)}
-                                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                                            />
-                                                        ) : (
-                                                            <p className="text-gray-900">{renderValue(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.Email)}</p>
-                                                        )}
-                                                    </div>
-                                                    <div>
-                                                        <span className="text-sm font-medium text-gray-600 block mb-1">Phone Number:</span>
-                                                        {isEditMode ? (
-                                                            <input
-                                                                type="tel"
-                                                                value={editedPatientData?.["Phone Number"] || ''}
-                                                                onChange={(e) => handleFieldChange('Phone Number', e.target.value)}
-                                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                                            />
-                                                        ) : (
-                                                            <p className="text-gray-900">{renderValue(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.["Phone Number"])}</p>
-                                                        )}
-                                                    </div>
-                                                    <div>
-                                                        <span className="text-sm font-medium text-gray-600 block mb-1">Date of Birth:</span>
-                                                        {isEditMode ? (
-                                                            <input
-                                                                type="text"
-                                                                value={editedPatientData?.DOB || ''}
-                                                                onChange={(e) => handleFieldChange('DOB', e.target.value)}
-                                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                                            />
-                                                        ) : (
-                                                            <p className="text-gray-900">{renderValue(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.DOB)}</p>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                <div className="space-y-4">
-                                                    <div>
-                                                        <span className="text-sm font-medium text-gray-600 block mb-1">Order Type:</span>
-                                                        {isEditMode ? (
-                                                            <input
-                                                                type="text"
-                                                                value={editedPatientData?.["Order Type"] || ''}
-                                                                onChange={(e) => handleFieldChange('Order Type', e.target.value)}
-                                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                                            />
-                                                        ) : (
-                                                            <p className="text-gray-900">{renderValue(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.["Order Type"])}</p>
-                                                        )}
-                                                    </div>
-                                                    <div>
-                                                        <span className="text-sm font-medium text-gray-600 block mb-1">Date Ordered:</span>
-                                                        {isEditMode ? (
-                                                            <input
-                                                                type="text"
-                                                                value={editedPatientData?.["Date Ordered"] || ''}
-                                                                onChange={(e) => handleFieldChange('Date Ordered', e.target.value)}
-                                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                                            />
-                                                        ) : (
-                                                            <p className="text-gray-900">{renderValue(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.["Date Ordered"])}</p>
-                                                        )}
-                                                    </div>
-                                                    <div>
-                                                        <span className="text-sm font-medium text-gray-600 block mb-1">Medication Ordered:</span>
-                                                        {isEditMode ? (
-                                                            <input
-                                                                type="text"
-                                                                value={editedPatientData?.["Medication Ordered"] || ''}
-                                                                onChange={(e) => handleFieldChange('Medication Ordered', e.target.value)}
-                                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                                            />
-                                                        ) : (
-                                                            <p className="text-gray-900">{renderValue(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.["Medication Ordered"])}</p>
-                                                        )}
-                                                    </div>
-                                                    <div>
-                                                        <span className="text-sm font-medium text-gray-600 block mb-1">Referred By:</span>
-                                                        {isEditMode ? (
-                                                            <input
-                                                                type="text"
-                                                                value={editedPatientData?.["Referred By"] || ''}
-                                                                onChange={(e) => handleFieldChange('Referred By', e.target.value)}
-                                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                                            />
-                                                        ) : (
-                                                            <p className="text-gray-900">{renderValue(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.["Referred By"])}</p>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-
-                                        {/* Order & Payment Information */}
-                                        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                                            <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-                                                <h3 className="text-xl font-bold text-gray-900 flex items-center">
-                                                    <Icon icon="lucide:credit-card" className="w-5 h-5 mr-2 text-primary-600" />
-                                                    Order & Payment Information
-                                                </h3>
-                                            </div>
-                                            <div className="p-6">
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                    <div className="space-y-4">
-                                                        <div>
-                                                            <span className="text-sm font-medium text-gray-600 block mb-1">Payment Status:</span>
-                                                            {isEditMode ? (
-                                                                <input
-                                                                    type="text"
-                                                                    value={editedPatientData?.["Payment Status"] || ''}
-                                                                    onChange={(e) => handleFieldChange('Payment Status', e.target.value)}
-                                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                                                />
-                                                            ) : (
-                                                                <p className="text-gray-900">{renderValue(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.["Payment Status"])}</p>
-                                                            )}
-                                                        </div>
-                                                        <div>
-                                                            <span className="text-sm font-medium text-gray-600 block mb-1">Payment Amount:</span>
-                                                            {isEditMode ? (
-                                                                <input
-                                                                    type="text"
-                                                                    value={editedPatientData?.["Payment Amount"] || ''}
-                                                                    onChange={(e) => handleFieldChange('Payment Amount', e.target.value)}
-                                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                                                />
-                                                            ) : (
-                                                                <p className="text-gray-900">{formatCurrency(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.["Payment Amount"])}</p>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                    <div className="space-y-4">
-                                                        <div>
-                                                            <span className="text-sm font-medium text-gray-600 block mb-1">Shipping Payment:</span>
-                                                            {isEditMode ? (
-                                                                <input
-                                                                    type="text"
-                                                                    value={editedPatientData?.["Shipping Payment"] || ''}
-                                                                    onChange={(e) => handleFieldChange('Shipping Payment', e.target.value)}
-                                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                                                />
-                                                            ) : (
-                                                                <p className="text-gray-900">{formatCurrency(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.["Shipping Payment"])}</p>
-                                                            )}
-                                                        </div>
-                                                        <div>
-                                                            <span className="text-sm font-medium text-gray-600 block mb-1">Pickup or Delivery:</span>
-                                                            {isEditMode ? (
-                                                                <input
-                                                                    type="text"
-                                                                    value={editedPatientData?.["Pickup or Delivery"] || ''}
-                                                                    onChange={(e) => handleFieldChange('Pickup or Delivery', e.target.value)}
-                                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                                                />
-                                                            ) : (
-                                                                <p className="text-gray-900">{renderValue(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.["Pickup or Delivery"])}</p>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Shipping Information */}
-                                        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                                            <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-                                                <h3 className="text-xl font-bold text-gray-900 flex items-center">
-                                                    <Icon icon="lucide:truck" className="w-5 h-5 mr-2 text-primary-600" />
-                                                    Shipping Information
-                                                </h3>
-                                            </div>
-                                            <div className="p-6">
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                    <div className="space-y-4">
-                                                        <div>
-                                                            <span className="text-sm font-medium text-gray-600 block mb-1">Shipping Status:</span>
-                                                            {isEditMode ? (
-                                                                <input
-                                                                    type="text"
-                                                                    value={editedPatientData?.["Shipping Status"] || ''}
-                                                                    onChange={(e) => handleFieldChange('Shipping Status', e.target.value)}
-                                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                                                />
-                                                            ) : (
-                                                                <p className="text-gray-900">{renderValue(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.["Shipping Status"])}</p>
-                                                            )}
-                                                        </div>
-                                                        <div>
-                                                            <span className="text-sm font-medium text-gray-600 block mb-1">Tracking Number:</span>
-                                                            {isEditMode ? (
-                                                                <input
-                                                                    type="text"
-                                                                    value={editedPatientData?.["Tracking Number"] || ''}
-                                                                    onChange={(e) => handleFieldChange('Tracking Number', e.target.value)}
-                                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                                                />
-                                                            ) : (
-                                                                <p className="text-gray-900">{renderValue(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.["Tracking Number"])}</p>
-                                                            )}
-                                                        </div>
-                                                        <div>
-                                                            <span className="text-sm font-medium text-gray-600 block mb-1">Date Delivered:</span>
-                                                            {isEditMode ? (
-                                                                <input
-                                                                    type="text"
-                                                                    value={editedPatientData?.["Date Delivered"] || ''}
-                                                                    onChange={(e) => handleFieldChange('Date Delivered', e.target.value)}
-                                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                                                />
-                                                            ) : (
-                                                                <p className="text-gray-900">{renderValue(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.["Date Delivered"])}</p>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                    <div className="space-y-4">
-                                                        <div>
-                                                            <span className="text-sm font-medium text-gray-600 block mb-1">Patient Shipping Address:</span>
-                                                            {isEditMode ? (
-                                                                <textarea
-                                                                    value={editedPatientData?.["Patient Shipping Address"] || ''}
-                                                                    onChange={(e) => handleFieldChange('Patient Shipping Address', e.target.value)}
-                                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                                                    rows={3}
-                                                                />
-                                                            ) : (
-                                                                <p className="text-gray-900">{renderValue(adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data?.["Patient Shipping Address"])}</p>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Invoice/Receipts Section */}
-                                        {(() => {
-                                            const contactData = adminContactDetails[selectedAdminPatient.opportunity_id]?.contact_data;
-                                            const receipts = contactData?.["Invoice/Receipts"] || contactData?.["Invoice/Receipt"];
-
-                                            if (receipts && Array.isArray(receipts) && receipts.length > 0) {
-                                                return (
-                                                    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                                                        <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-                                                            <h3 className="text-xl font-bold text-gray-900 flex items-center">
-                                                                <Icon icon="lucide:file-text" className="w-5 h-5 mr-2 text-primary-600" />
-                                                                Invoice & Receipts
-                                                            </h3>
-                                                            <p className="text-gray-600 text-sm mt-1">Download or view patient documents</p>
-                                                        </div>
-                                                        <div className="p-6">
-                                                            {renderValue(receipts, "Invoice/Receipts")}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            }
-                                            return null;
-                                        })()}
-                                    </div>
-                                ) : (
-                                    <div className="flex items-center justify-center py-12 text-red-600">
-                                        <Icon icon="lucide:alert-circle" className="w-8 h-8 mr-3" />
-                                        <span className="text-lg">Failed to load patient details</span>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            {/* Export Success Modal */}
-            {showExportModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
-                        <div className="text-center">
-                            <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                                <Icon icon="lucide:check" className="w-8 h-8 text-white" />
-                            </div>
-                            <h3 className="text-xl font-bold text-gray-800 mb-2">Export Successful!</h3>
-                            <p className="text-gray-600 text-sm mb-4">
-                                Your Excel file has been downloaded successfully.
-                            </p>
-                            <p className="text-gray-500 text-xs mb-6">
-                                {(filteredAdminPatients?.patients?.length || adminPatients?.patients?.length || 0)} patients exported
-                                {selectedProvider && ` for ${selectedProvider}`}
-                            </p>
+                    ) : error ? (
+                        <div className="text-center py-12">
+                            <Icon icon="lucide:alert-circle" className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                            <h3 className="text-lg font-semibold text-gray-900 mb-2">Error Loading Providers</h3>
+                            <p className="text-gray-600 mb-4">{error}</p>
                             <Button
-                                onClick={() => setShowExportModal(false)}
-                                className="bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-primary-600 hover:to-secondary-600 text-white font-semibold px-6 py-2 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
+                                color="primary"
+                                onClick={() => window.location.reload()}
+                                startContent={<Icon icon="lucide:refresh-cw" />}
                             >
-                                Close
+                                Try Again
                             </Button>
                         </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Export Error Display */}
-            {exportError && (
-                <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-right duration-300">
-                    <Card className="bg-gradient-to-r from-red-500/90 to-pink-500/90 backdrop-blur-sm border-0 shadow-2xl rounded-2xl overflow-hidden min-w-80">
-                        <CardBody className="p-6">
-                            <div className="flex items-center space-x-4">
-                                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                                    <Icon icon="lucide:alert-circle" className="w-6 h-6 text-white" />
+                    ) : activeProvidersData?.provider_tags && activeProvidersData.provider_tags.length > 0 ? (
+                        <div className="space-y-6">
+                            {/* Header Card */}
+                            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
+                                <div className="flex items-center space-x-3">
+                                    <div className="p-2 bg-blue-100 rounded-lg">
+                                        <Icon icon="lucide:users" className="w-6 h-6 text-blue-600" />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-xl font-semibold text-gray-900">Active Provider Tags</h2>
+                                        <p className="text-sm text-gray-600 mt-1">
+                                            {activeProvidersData.statistics.description} ({activeProvidersData.statistics.total_unique_provider_tags} total)
+                                        </p>
+                                    </div>
                                 </div>
-                                <div className="flex-1">
-                                    <h3 className="text-lg font-bold text-white mb-1">
-                                        Export Failed
-                                    </h3>
-                                    <p className="text-white/80 text-sm">
-                                        {exportError}
-                                    </p>
-                                </div>
-                                <Button
-                                    isIconOnly
-                                    variant="light"
-                                    size="sm"
-                                    className="text-white hover:bg-white/20"
-                                    onClick={() => setExportError(null)}
-                                >
-                                    <Icon icon="lucide:x" className="w-4 h-4" />
-                                </Button>
                             </div>
-                        </CardBody>
-                    </Card>
+
+                            {/* Provider Cards Grid */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {activeProvidersData.provider_tags.map((providerTag, index) => (
+                                    <div
+                                        key={index}
+                                        className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200 hover:border-blue-300 group"
+                                    >
+                                        <div className="p-6">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <div className="flex items-center space-x-3">
+                                                    <div className="p-2 bg-gray-100 rounded-lg group-hover:bg-blue-50 transition-colors">
+                                                        <Icon icon="lucide:user-check" className="w-5 h-5 text-gray-600 group-hover:text-blue-600" />
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="font-semibold text-gray-900 text-lg">{providerTag}</h3>
+                                                        <p className="text-sm text-gray-500">Provider Tag</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center justify-between">
+                                                <div className="text-xs text-gray-500">
+                                                    Active Provider
+                                                </div>
+                                                <Button
+                                                    color="primary"
+                                                    size="sm"
+                                                    onClick={() => handleProviderChange(providerTag)}
+                                                    className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-all duration-200 hover:scale-105"
+                                                    startContent={<Icon icon="lucide:eye" className="w-4 h-4" />}
+                                                >
+                                                    View Patients
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="text-center py-12">
+                            <Icon icon="lucide:users" className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                            <h3 className="text-lg font-medium text-gray-900 mb-2">No providers found</h3>
+                            <p className="text-gray-500">There are no active providers to display.</p>
+                        </div>
+                    )}
                 </div>
-            )}
-        </div>
+            </div>
+        </AuthGuard>
     );
 };
 
-export default AdminPage; 
+export default AdminPage;
