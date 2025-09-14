@@ -15,6 +15,7 @@ interface User {
     username?: string;
     first_name?: string;
     last_name?: string;
+    provider_tag?: string; // Provider tag for non-admin users
 }
 
 interface AuthContextType {

@@ -11,6 +11,7 @@ import { useAuth } from './contexts/AuthContext';
 import { getPatients, getContactReceipts, PatientData, PatientsResponse, ReceiptData } from './utils/api';
 import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs';
 import { DateRangePicker } from './components/ui/date-range-picker';
+import SortedReceiptsTable from './components/SortedReceiptsTable';
 
 
 // Format currency amounts with proper dollar sign and decimal formatting
@@ -800,35 +801,8 @@ const App: React.FC = () => {
                                 <span className="text-sm text-red-500 mt-1">{receiptsError}</span>
                               </div>
                             </div>
-                          ) : receipts.length === 0 ? (
-                            <div className="flex items-center justify-center py-12 text-gray-500">
-                              <Icon icon="lucide:file-x" className="w-8 h-8 mr-3" />
-                              <span className="text-lg">No receipts available for this patient</span>
-                            </div>
                           ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                              {receipts.map((receipt, index) => (
-                                <div key={index} className="group relative bg-gradient-to-br from-gray-50 to-white border border-gray-200 rounded-xl p-6 hover:shadow-lg hover:border-primary-300 transition-all duration-300">
-                                  <div className="flex flex-col items-center text-center">
-                                    <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mb-4 group-hover:bg-primary-200 transition-colors duration-200">
-                                      <Icon icon="lucide:file-text" className="w-8 h-8 text-primary-600" />
-                                    </div>
-                                    <h4 className="font-semibold text-gray-900 text-base mb-4 group-hover:text-primary-600 transition-colors duration-200 break-words">
-                                      {receipt.original_name}
-                                    </h4>
-                                    <a
-                                      href={receipt.url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="inline-flex items-center px-6 py-3 bg-primary-500 text-white text-sm font-medium rounded-lg hover:bg-primary-600 transition-colors duration-200 shadow-sm hover:shadow-md"
-                                    >
-                                      <Icon icon="lucide:external-link" className="w-4 h-4 mr-2" />
-                                      View Document
-                                    </a>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
+                            <SortedReceiptsTable receipts={receipts} />
                           )}
                         </div>
                       </div>

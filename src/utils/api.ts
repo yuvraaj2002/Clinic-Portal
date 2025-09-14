@@ -314,10 +314,14 @@ export interface PatientsResponse {
 }
 
 // Function to fetch patients from the API
-export const getPatients = async (filter?: string | null, customDateRange?: { from: Date | null, to: Date | null }): Promise<PatientsResponse> => {
-    console.log('Fetching patients with filter:', filter, 'custom range:', customDateRange);
+export const getPatients = async (
+    filter?: string | null,
+    customDateRange?: { from: Date | null, to: Date | null },
+    providerTag?: string | null
+): Promise<PatientsResponse> => {
+    console.log('Fetching patients with filter:', filter, 'custom range:', customDateRange, 'provider tag:', providerTag);
 
-    // Build endpoint with optional filter parameter
+    // Build endpoint with optional parameters
     const params = new URLSearchParams();
     if (filter) {
         params.append('filter', filter);
@@ -328,6 +332,9 @@ export const getPatients = async (filter?: string | null, customDateRange?: { fr
         const endDateOnly = extractDatePart(customDateRange.to);
         params.append('start_date', startDateOnly);
         params.append('end_date', endDateOnly);
+    }
+    if (providerTag) {
+        params.append('provider_tag', providerTag);
     }
 
     const endpoint = `/provider/provider-patients${params.toString() ? `?${params.toString()}` : ''}`;
