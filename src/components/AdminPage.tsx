@@ -32,9 +32,15 @@ const AdminPage: React.FC = () => {
     const [showExportModal, setShowExportModal] = React.useState(false);
 
     // Edit patient modal state
+    // NOTE: These state variables are PER-USER because:
+    // 1. Each user has their own browser session
+    // 2. Each user has their own authentication context
+    // 3. Data is fetched per user based on their provider_tag
+    // 4. If same user opens multiple tabs, each tab has its own component instance
     const [showEditModal, setShowEditModal] = React.useState(false);
     const [editingPatient, setEditingPatient] = React.useState<PatientData | null>(null);
-    const [editFormData, setEditFormData] = React.useState<Partial<PatientData>>({});
+    const [originalPatientData, setOriginalPatientData] = React.useState<PatientData | null>(null);
+    const [updatedPatientData, setUpdatedPatientData] = React.useState<PatientData | null>(null);
     const [isSaving, setIsSaving] = React.useState(false);
 
     const patientsPerPage = 20;
@@ -342,45 +348,94 @@ const AdminPage: React.FC = () => {
     // Handle edit patient click
     const handleEditPatient = (patient: PatientData) => {
         setEditingPatient(patient);
-        setEditFormData({
-            "Patient Name": patient["Patient Name"] || '',
-            "Phone Number": patient["Phone Number"] || '',
-            DOB: patient.DOB || '',
-            "Date Ordered": patient["Date Ordered"] || '',
-            "Order Type": patient["Order Type"] || '',
-            "Medication Ordered": patient["Medication Ordered"] || '',
-            "Payment Status": patient["Payment Status"] || '',
-            "Payment Amount": patient["Payment Amount"] || '',
-            "Shipping Payment": patient["Shipping Payment"] || '',
-            "Shipping Status": patient["Shipping Status"] || '',
-            "Tracking Number": patient["Tracking Number"] || '',
-            "Date Delivered": patient["Date Delivered"] || '',
-            "Pickup or Delivery": patient["Pickup or Delivery"] || '',
-            "Referred By": patient["Referred By"] || '',
-            "Patient Shipping Address": patient["Patient Shipping Address"] || '',
-        });
+
+        // Store original data (immutable copy)
+        setOriginalPatientData({ ...patient });
+
+        // Initialize updated data (mutable copy)
+        setUpdatedPatientData({ ...patient });
+
         setShowEditModal(true);
+    };
+
+    // Reset all fields to original values
+    const resetToOriginal = () => {
+        if (originalPatientData) {
+            setUpdatedPatientData({ ...originalPatientData });
+        }
     };
 
     // Handle form input changes
     const handleEditInputChange = (field: string, value: string) => {
-        setEditFormData(prev => ({ ...prev, [field]: value }));
+        updateField(field, value);
+    };
+
+    // Check if a field has been modified
+    const isFieldModified = (field: string): boolean => {
+        if (!originalPatientData || !updatedPatientData) return false;
+        const originalValue = originalPatientData[field as keyof PatientData];
+        const currentValue = updatedPatientData[field as keyof PatientData];
+
+        // Handle array fields (like Payment Status)
+        if (Array.isArray(originalValue) && Array.isArray(currentValue)) {
+            return JSON.stringify(originalValue) !== JSON.stringify(currentValue);
+        }
+
+        // Handle string comparison
+        return String(originalValue || '') !== String(currentValue || '');
+    };
+
+    // Get the current value for a field (from updated data)
+    const getFieldValue = (field: string): string => {
+        if (!updatedPatientData) return '';
+        const value = updatedPatientData[field as keyof PatientData];
+
+        // Handle array fields (like Payment Status)
+        if (Array.isArray(value)) {
+            return value.join(', ');
+        }
+
+        return String(value || '');
+    };
+
+    // Update a specific field in the updated data
+    const updateField = (field: string, value: string) => {
+        if (!updatedPatientData) return;
+
+        setUpdatedPatientData(prev => {
+            if (!prev) return prev;
+
+            // Handle array fields (like Payment Status)
+            if (field === "Payment Status") {
+                return {
+                    ...prev,
+                    [field]: value.split(',').map(item => item.trim()).filter(item => item)
+                };
+            }
+
+            return {
+                ...prev,
+                [field]: value
+            };
+        });
     };
 
     // Handle save patient changes
     const handleSavePatient = async () => {
-        if (!editingPatient) return;
+        if (!editingPatient || !updatedPatientData) return;
 
         setIsSaving(true);
         try {
             // Here you would typically make an API call to update the patient
-            console.log('Saving patient changes:', editFormData);
+            console.log('Saving patient changes:', updatedPatientData);
+            console.log('Original data:', originalPatientData);
 
             // For now, just show success and close modal
             // In a real implementation, you'd call an API endpoint to update the patient
             setShowEditModal(false);
             setEditingPatient(null);
-            setEditFormData({});
+            setOriginalPatientData(null);
+            setUpdatedPatientData(null);
 
             // Optionally refresh the patient list
             if (selectedProvider) {
@@ -400,7 +455,8 @@ const AdminPage: React.FC = () => {
     const handleCloseEditModal = () => {
         setShowEditModal(false);
         setEditingPatient(null);
-        setEditFormData({});
+        setOriginalPatientData(null);
+        setUpdatedPatientData(null);
     };
 
     // Deduplicate provider tags to fix the duplicate issue
@@ -969,37 +1025,109 @@ const AdminPage: React.FC = () => {
 
                             {/* Modal Body - Edit Form */}
                             <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+                                {/* Modification Summary */}
+                                {(() => {
+                                    const modifiedFields = [
+                                        "Patient Name", "Phone Number", "DOB", "Date Ordered", "Order Type",
+                                        "Medication Ordered", "Payment Status", "Payment Amount", "Shipping Payment",
+                                        "Shipping Status", "Tracking Number", "Date Delivered", "Pickup or Delivery",
+                                        "Referred By", "Patient Shipping Address"
+                                    ].filter(field => isFieldModified(field));
+
+                                    return modifiedFields.length > 0 && (
+                                        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center">
+                                                    <Icon icon="lucide:alert-triangle" className="w-5 h-5 text-yellow-600 mr-2" />
+                                                    <span className="text-sm font-medium text-yellow-800">
+                                                        {modifiedFields.length} field{modifiedFields.length !== 1 ? 's' : ''} modified
+                                                    </span>
+                                                </div>
+                                                <div className="text-xs text-yellow-600">
+                                                    Original vs Updated Data
+                                                </div>
+                                            </div>
+
+                                            {/* Show detailed changes */}
+                                            <div className="mt-3 space-y-2">
+                                                {modifiedFields.slice(0, 3).map(field => (
+                                                    <div key={field} className="text-xs bg-white p-2 rounded border">
+                                                        <div className="font-medium text-gray-700">{field}:</div>
+                                                        <div className="text-gray-600">
+                                                            <span className="text-red-600">Original: </span>
+                                                            {String(originalPatientData?.[field as keyof PatientData] || 'N/A')}
+                                                        </div>
+                                                        <div className="text-gray-600">
+                                                            <span className="text-green-600">Updated: </span>
+                                                            {getFieldValue(field)}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                                {modifiedFields.length > 3 && (
+                                                    <div className="text-xs text-yellow-600">
+                                                        ... and {modifiedFields.length - 3} more fields
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     {/* Patient Name */}
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">Patient Name</label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Patient Name
+                                            {isFieldModified("Patient Name") && (
+                                                <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                                    <Icon icon="lucide:edit" className="w-3 h-3 mr-1" />
+                                                    Modified
+                                                </span>
+                                            )}
+                                        </label>
                                         <Input
-                                            value={editFormData["Patient Name"] || ''}
+                                            value={getFieldValue("Patient Name")}
                                             onChange={(e) => handleEditInputChange("Patient Name", e.target.value)}
                                             placeholder="Enter patient name"
-                                            className="w-full"
+                                            className={`w-full ${isFieldModified("Patient Name") ? 'ring-2 ring-yellow-400 bg-yellow-50' : ''}`}
                                         />
                                     </div>
 
                                     {/* Phone Number */}
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Phone Number
+                                            {isFieldModified("Phone Number") && (
+                                                <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                                    <Icon icon="lucide:edit" className="w-3 h-3 mr-1" />
+                                                    Modified
+                                                </span>
+                                            )}
+                                        </label>
                                         <Input
-                                            value={editFormData["Phone Number"] || ''}
+                                            value={getFieldValue("Phone Number")}
                                             onChange={(e) => handleEditInputChange("Phone Number", e.target.value)}
                                             placeholder="Enter phone number"
-                                            className="w-full"
+                                            className={`w-full ${isFieldModified("Phone Number") ? 'ring-2 ring-yellow-400 bg-yellow-50' : ''}`}
                                         />
                                     </div>
 
                                     {/* DOB */}
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">Date of Birth</label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Date of Birth
+                                            {isFieldModified("DOB") && (
+                                                <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                                    <Icon icon="lucide:edit" className="w-3 h-3 mr-1" />
+                                                    Modified
+                                                </span>
+                                            )}
+                                        </label>
                                         <Input
-                                            value={editFormData.DOB || ''}
+                                            value={getFieldValue("DOB")}
                                             onChange={(e) => handleEditInputChange("DOB", e.target.value)}
                                             placeholder="MM/DD/YYYY"
-                                            className="w-full"
+                                            className={`w-full ${isFieldModified("DOB") ? 'ring-2 ring-yellow-400 bg-yellow-50' : ''}`}
                                         />
                                     </div>
 
@@ -1007,7 +1135,7 @@ const AdminPage: React.FC = () => {
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">Date Ordered</label>
                                         <Input
-                                            value={editFormData["Date Ordered"] || ''}
+                                            value={getFieldValue("Date Ordered")}
                                             onChange={(e) => handleEditInputChange("Date Ordered", e.target.value)}
                                             placeholder="Enter order date"
                                             className="w-full"
@@ -1018,7 +1146,7 @@ const AdminPage: React.FC = () => {
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">Order Type</label>
                                         <Input
-                                            value={editFormData["Order Type"] || ''}
+                                            value={getFieldValue("Order Type")}
                                             onChange={(e) => handleEditInputChange("Order Type", e.target.value)}
                                             placeholder="Enter order type"
                                             className="w-full"
@@ -1027,12 +1155,20 @@ const AdminPage: React.FC = () => {
 
                                     {/* Medication Ordered */}
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">Medication Ordered</label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Medication Ordered
+                                            {isFieldModified("Medication Ordered") && (
+                                                <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                                    <Icon icon="lucide:edit" className="w-3 h-3 mr-1" />
+                                                    Modified
+                                                </span>
+                                            )}
+                                        </label>
                                         <Input
-                                            value={editFormData["Medication Ordered"] || ''}
+                                            value={getFieldValue("Medication Ordered")}
                                             onChange={(e) => handleEditInputChange("Medication Ordered", e.target.value)}
                                             placeholder="Enter medication"
-                                            className="w-full"
+                                            className={`w-full ${isFieldModified("Medication Ordered") ? 'ring-2 ring-yellow-400 bg-yellow-50' : ''}`}
                                         />
                                     </div>
 
@@ -1040,7 +1176,7 @@ const AdminPage: React.FC = () => {
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">Payment Status</label>
                                         <Input
-                                            value={Array.isArray(editFormData["Payment Status"]) ? editFormData["Payment Status"].join(', ') : (editFormData["Payment Status"] || '')}
+                                            value={getFieldValue("Payment Status")}
                                             onChange={(e) => handleEditInputChange("Payment Status", e.target.value)}
                                             placeholder="Enter payment status"
                                             className="w-full"
@@ -1049,12 +1185,20 @@ const AdminPage: React.FC = () => {
 
                                     {/* Payment Amount */}
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">Payment Amount</label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Payment Amount
+                                            {isFieldModified("Payment Amount") && (
+                                                <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                                    <Icon icon="lucide:edit" className="w-3 h-3 mr-1" />
+                                                    Modified
+                                                </span>
+                                            )}
+                                        </label>
                                         <Input
-                                            value={String(editFormData["Payment Amount"] || '')}
+                                            value={getFieldValue("Payment Amount")}
                                             onChange={(e) => handleEditInputChange("Payment Amount", e.target.value)}
                                             placeholder="Enter payment amount"
-                                            className="w-full"
+                                            className={`w-full ${isFieldModified("Payment Amount") ? 'ring-2 ring-yellow-400 bg-yellow-50' : ''}`}
                                         />
                                     </div>
 
@@ -1062,7 +1206,7 @@ const AdminPage: React.FC = () => {
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">Shipping Payment</label>
                                         <Input
-                                            value={String(editFormData["Shipping Payment"] || '')}
+                                            value={getFieldValue("Shipping Payment")}
                                             onChange={(e) => handleEditInputChange("Shipping Payment", e.target.value)}
                                             placeholder="Enter shipping payment"
                                             className="w-full"
@@ -1073,7 +1217,7 @@ const AdminPage: React.FC = () => {
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">Shipping Status</label>
                                         <Input
-                                            value={editFormData["Shipping Status"] || ''}
+                                            value={getFieldValue("Shipping Status")}
                                             onChange={(e) => handleEditInputChange("Shipping Status", e.target.value)}
                                             placeholder="Enter shipping status"
                                             className="w-full"
@@ -1084,7 +1228,7 @@ const AdminPage: React.FC = () => {
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">Tracking Number</label>
                                         <Input
-                                            value={editFormData["Tracking Number"] || ''}
+                                            value={getFieldValue("Tracking Number")}
                                             onChange={(e) => handleEditInputChange("Tracking Number", e.target.value)}
                                             placeholder="Enter tracking number"
                                             className="w-full"
@@ -1095,7 +1239,7 @@ const AdminPage: React.FC = () => {
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">Date Delivered</label>
                                         <Input
-                                            value={editFormData["Date Delivered"] || ''}
+                                            value={getFieldValue("Date Delivered")}
                                             onChange={(e) => handleEditInputChange("Date Delivered", e.target.value)}
                                             placeholder="Enter delivery date"
                                             className="w-full"
@@ -1106,7 +1250,7 @@ const AdminPage: React.FC = () => {
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">Pickup or Delivery</label>
                                         <Input
-                                            value={editFormData["Pickup or Delivery"] || ''}
+                                            value={getFieldValue("Pickup or Delivery")}
                                             onChange={(e) => handleEditInputChange("Pickup or Delivery", e.target.value)}
                                             placeholder="Enter delivery method"
                                             className="w-full"
@@ -1117,7 +1261,7 @@ const AdminPage: React.FC = () => {
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">Referred By</label>
                                         <Input
-                                            value={editFormData["Referred By"] || ''}
+                                            value={getFieldValue("Referred By")}
                                             onChange={(e) => handleEditInputChange("Referred By", e.target.value)}
                                             placeholder="Enter referral source"
                                             className="w-full"
@@ -1128,7 +1272,7 @@ const AdminPage: React.FC = () => {
                                     <div className="md:col-span-2">
                                         <label className="block text-sm font-medium text-gray-700 mb-2">Patient Shipping Address</label>
                                         <Input
-                                            value={editFormData["Patient Shipping Address"] || ''}
+                                            value={getFieldValue("Patient Shipping Address")}
                                             onChange={(e) => handleEditInputChange("Patient Shipping Address", e.target.value)}
                                             placeholder="Enter shipping address"
                                             className="w-full"
@@ -1137,23 +1281,40 @@ const AdminPage: React.FC = () => {
                                 </div>
 
                                 {/* Modal Footer */}
-                                <div className="flex justify-end space-x-3 mt-8 pt-6 border-t border-gray-200">
+                                <div className="flex justify-between items-center mt-8 pt-6 border-t border-gray-200">
+                                    {/* Reset Button */}
                                     <Button
-                                        variant="bordered"
-                                        onClick={handleCloseEditModal}
-                                        className="px-6 py-2"
+                                        variant="light"
+                                        onClick={resetToOriginal}
+                                        className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                                        startContent={<Icon icon="lucide:undo" className="w-4 h-4" />}
                                     >
-                                        Cancel
+                                        Reset to Original
                                     </Button>
-                                    <Button
-                                        color="primary"
-                                        onClick={handleSavePatient}
-                                        disabled={isSaving}
-                                        className="px-6 py-2"
-                                        startContent={isSaving ? <Icon icon="lucide:loader-2" className="w-4 h-4 animate-spin" /> : <Icon icon="lucide:save" className="w-4 h-4" />}
-                                    >
-                                        {isSaving ? 'Saving...' : 'Save Changes'}
-                                    </Button>
+
+                                    {/* Action Buttons */}
+                                    <div className="flex space-x-3">
+                                        <Button
+                                            variant="bordered"
+                                            onClick={handleSavePatient}
+                                            disabled={isSaving}
+                                            className="px-6 py-2 min-w-[180px]"
+                                            startContent={isSaving ? <Icon icon="lucide:loader-2" className="w-4 h-4 animate-spin" /> : <Icon icon="lucide:edit" className="w-4 h-4" />}
+                                        >
+                                            {isSaving ? 'Updating...' : 'Update Current Data'}
+                                        </Button>
+                                        <Button
+                                            color="primary"
+                                            onClick={() => {
+                                                // Add your add historical data functionality here
+                                                console.log('Add Historical Data clicked for patient:', editingPatient?.["Patient Name"]);
+                                            }}
+                                            className="px-6 py-2 min-w-[180px] bg-blue-600 hover:bg-blue-700"
+                                            startContent={<Icon icon="lucide:history" className="w-4 h-4" />}
+                                        >
+                                            Add Historical Data
+                                        </Button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
