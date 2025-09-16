@@ -1,7 +1,8 @@
 import React from 'react';
 import { Button, Card, CardBody, Input, Pagination } from "@heroui/react";
 import { Icon } from "@iconify/react";
-import { getActiveNonAdminProviders, ActiveNonAdminProvidersResponse, getPatients, PatientsResponse, PatientData } from '../utils/api';
+import { getActiveNonAdminProviders, ActiveNonAdminProvidersResponse, getPatients, PatientsResponse, PatientData, updateContactOnly, addHistoricalData } from '../utils/api';
+import HistoricalDataModal from './HistoricalDataModal';
 import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
 import { DateRangePicker } from './ui/date-range-picker';
 import AuthGuard from './AuthGuard';
@@ -42,6 +43,15 @@ const AdminPage: React.FC = () => {
     const [originalPatientData, setOriginalPatientData] = React.useState<PatientData | null>(null);
     const [updatedPatientData, setUpdatedPatientData] = React.useState<PatientData | null>(null);
     const [isSaving, setIsSaving] = React.useState(false);
+
+    // Historical data modal state
+    const [showHistoricalModal, setShowHistoricalModal] = React.useState(false);
+    const [historicalContactId, setHistoricalContactId] = React.useState<string>('');
+    const [historicalPatientName, setHistoricalPatientName] = React.useState<string>('');
+
+    // Confirmation modal state
+    const [showUpdateConfirmation, setShowUpdateConfirmation] = React.useState(false);
+    const [showHistoricalConfirmation, setShowHistoricalConfirmation] = React.useState(false);
 
     const patientsPerPage = 20;
 
@@ -420,32 +430,121 @@ const AdminPage: React.FC = () => {
         });
     };
 
-    // Handle save patient changes
+    // Get only the modified fields for API payload
+    const getModifiedFields = (): Record<string, any> => {
+        if (!originalPatientData || !updatedPatientData) return {};
+
+        const modifiedFields: Record<string, any> = {};
+        const allFields = [
+            "Patient Name", "Phone Number", "DOB", "Date Ordered", "Order Type",
+            "Medication Ordered", "Payment Status", "Payment Amount", "Shipping Payment",
+            "Shipping Status", "Tracking Number", "Date Delivered", "Pickup or Delivery",
+            "Referred By", "Patient Shipping Address"
+        ];
+
+        allFields.forEach(field => {
+            if (isFieldModified(field)) {
+                const key = field as keyof PatientData;
+                modifiedFields[field] = updatedPatientData[key];
+            }
+        });
+
+        return modifiedFields;
+    };
+
+    // Handle save patient changes (Scenario 1: Update Current Data)
     const handleSavePatient = async () => {
         if (!editingPatient || !updatedPatientData) return;
 
+        // Check if contact_id exists
+        if (!editingPatient.contact_id) {
+            console.error('Contact ID is missing from patient data');
+            return;
+        }
+
         setIsSaving(true);
         try {
-            // Here you would typically make an API call to update the patient
-            console.log('Saving patient changes:', updatedPatientData);
-            console.log('Original data:', originalPatientData);
+            // Get only the modified fields
+            const modifiedFields = getModifiedFields();
 
-            // For now, just show success and close modal
-            // In a real implementation, you'd call an API endpoint to update the patient
+            if (Object.keys(modifiedFields).length === 0) {
+                console.log('No fields were modified, skipping update');
+                setShowEditModal(false);
+                setEditingPatient(null);
+                setOriginalPatientData(null);
+                setUpdatedPatientData(null);
+                return;
+            }
+
+            console.log('Updating contact with modified fields:', modifiedFields);
+            console.log('Contact ID:', editingPatient.contact_id);
+
+            // Call API to update contact data only
+            await updateContactOnly(editingPatient.contact_id, modifiedFields);
+
+            console.log('Contact update successful');
+
+            // Close modal and reset state
             setShowEditModal(false);
             setEditingPatient(null);
             setOriginalPatientData(null);
             setUpdatedPatientData(null);
 
-            // Optionally refresh the patient list
+            // Refresh the patient list
             if (selectedProvider) {
-                // For admin users (provider_admin = True), use selectedProviderTag if available, otherwise use selectedProvider
-                // For non-admin users (provider_admin = False), just use selectedProvider (the provider tag is not sent to API)
                 const providerTagToUse = user?.provider_admin ? (selectedProviderTag || selectedProvider) : selectedProvider;
                 fetchPatients(providerTagToUse, dateFilter, customDateRange);
             }
         } catch (error) {
             console.error('Failed to save patient changes:', error);
+            // You could show an error toast here
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    // Handle add historical data (Scenario 2: Add Historical Data)
+    const handleAddHistoricalData = async () => {
+        if (!editingPatient || !updatedPatientData || !originalPatientData) return;
+
+        // Check if contact_id exists
+        if (!editingPatient.contact_id) {
+            console.error('Contact ID is missing from patient data');
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            // Get only the modified fields for update_data (new values to GoHighLevel)
+            const modifiedFields = getModifiedFields();
+
+            // Use ORIGINAL data for add_data (historical record in database)
+            const addData = { ...originalPatientData };
+
+            console.log('Adding historical data:');
+            console.log('Contact ID:', editingPatient.contact_id);
+            console.log('Update data (modified fields - NEW values for GHL):', modifiedFields);
+            console.log('Add data (ORIGINAL values for database):', addData);
+
+            // Call API to add historical data
+            await addHistoricalData(editingPatient.contact_id, modifiedFields, addData);
+
+            console.log('Historical data added successfully');
+
+            // Close modal and reset state
+            setShowEditModal(false);
+            setEditingPatient(null);
+            setOriginalPatientData(null);
+            setUpdatedPatientData(null);
+
+            // Refresh the patient list
+            if (selectedProvider) {
+                const providerTagToUse = user?.provider_admin ? (selectedProviderTag || selectedProvider) : selectedProvider;
+                fetchPatients(providerTagToUse, dateFilter, customDateRange);
+            }
+        } catch (error) {
+            console.error('Failed to add historical data:', error);
+            // You could show an error toast here
         } finally {
             setIsSaving(false);
         }
@@ -457,6 +556,25 @@ const AdminPage: React.FC = () => {
         setEditingPatient(null);
         setOriginalPatientData(null);
         setUpdatedPatientData(null);
+    };
+
+    // Handle view historical data
+    const handleViewHistoricalData = (patient: PatientData) => {
+        if (!patient.contact_id) {
+            console.error('Contact ID is missing from patient data');
+            return;
+        }
+
+        setHistoricalContactId(patient.contact_id);
+        setHistoricalPatientName(patient["Patient Name"] || 'Unknown Patient');
+        setShowHistoricalModal(true);
+    };
+
+    // Handle close historical data modal
+    const handleCloseHistoricalModal = () => {
+        setShowHistoricalModal(false);
+        setHistoricalContactId('');
+        setHistoricalPatientName('');
     };
 
     // Deduplicate provider tags to fix the duplicate issue
@@ -829,13 +947,27 @@ const AdminPage: React.FC = () => {
                                                                 {patient["Patient Name"] || 'Unknown Patient'}
                                                             </h3>
                                                         </div>
-                                                        <div className="ml-3">
+                                                        <div className="ml-3 flex space-x-2">
+                                                            {/* Historical Data Icon */}
+                                                            <div
+                                                                className="w-10 h-10 bg-gradient-to-r from-secondary-500 to-primary-500 rounded-full flex items-center justify-center shadow-sm cursor-pointer hover:shadow-lg transition-all duration-200"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleViewHistoricalData(patient);
+                                                                }}
+                                                                title="View Historical Data"
+                                                            >
+                                                                <Icon icon="lucide:history" className="w-5 h-5 text-white" />
+                                                            </div>
+
+                                                            {/* Edit Icon */}
                                                             <div
                                                                 className="w-10 h-10 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-full flex items-center justify-center shadow-sm cursor-pointer hover:shadow-lg transition-all duration-200"
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
                                                                     handleEditPatient(patient);
                                                                 }}
+                                                                title="Edit Patient"
                                                             >
                                                                 <Icon icon="lucide:edit" className="w-5 h-5 text-white" />
                                                             </div>
@@ -1296,25 +1428,108 @@ const AdminPage: React.FC = () => {
                                     <div className="flex space-x-3">
                                         <Button
                                             variant="bordered"
-                                            onClick={handleSavePatient}
+                                            onClick={() => setShowUpdateConfirmation(true)}
                                             disabled={isSaving}
                                             className="px-6 py-2 min-w-[180px]"
-                                            startContent={isSaving ? <Icon icon="lucide:loader-2" className="w-4 h-4 animate-spin" /> : <Icon icon="lucide:edit" className="w-4 h-4" />}
+                                            startContent={<Icon icon="lucide:edit" className="w-4 h-4" />}
                                         >
-                                            {isSaving ? 'Updating...' : 'Update Current Data'}
+                                            Update Current Data
                                         </Button>
                                         <Button
                                             color="primary"
-                                            onClick={() => {
-                                                // Add your add historical data functionality here
-                                                console.log('Add Historical Data clicked for patient:', editingPatient?.["Patient Name"]);
-                                            }}
+                                            onClick={() => setShowHistoricalConfirmation(true)}
+                                            disabled={isSaving}
                                             className="px-6 py-2 min-w-[180px] bg-blue-600 hover:bg-blue-700"
                                             startContent={<Icon icon="lucide:history" className="w-4 h-4" />}
                                         >
                                             Add Historical Data
                                         </Button>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Historical Data Modal */}
+                <HistoricalDataModal
+                    isOpen={showHistoricalModal}
+                    onClose={handleCloseHistoricalModal}
+                    contactId={historicalContactId}
+                    patientName={historicalPatientName}
+                />
+
+                {/* Update Current Data Confirmation Modal */}
+                {showUpdateConfirmation && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4">
+                        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+                            <div className="text-center">
+                                <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <Icon icon="lucide:edit" className="w-8 h-8 text-white" />
+                                </div>
+                                <h3 className="text-xl font-bold text-gray-900 mb-4">Update Current Data</h3>
+                                <p className="text-gray-600 mb-6 text-sm leading-relaxed">
+                                    The changes you made will be updated directly in <strong>GoHighLevel</strong>.
+                                    This will modify the existing contact information.
+                                </p>
+                                <div className="flex space-x-3">
+                                    <Button
+                                        variant="bordered"
+                                        onClick={() => setShowUpdateConfirmation(false)}
+                                        className="flex-1 px-4 py-2"
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        color="primary"
+                                        onClick={() => {
+                                            setShowUpdateConfirmation(false);
+                                            handleSavePatient();
+                                        }}
+                                        className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700"
+                                        startContent={<Icon icon="lucide:check" className="w-4 h-4" />}
+                                    >
+                                        Confirm Update
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Add Historical Data Confirmation Modal */}
+                {showHistoricalConfirmation && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4">
+                        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+                            <div className="text-center">
+                                <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <Icon icon="lucide:history" className="w-8 h-8 text-white" />
+                                </div>
+                                <h3 className="text-xl font-bold text-gray-900 mb-4">Add Historical Data</h3>
+                                <p className="text-gray-600 mb-6 text-sm leading-relaxed">
+                                    Your <strong>new values</strong> will update the contact in <strong>GoHighLevel</strong>,
+                                    and the <strong>original data</strong> (before your changes) will be saved in the
+                                    <strong>database</strong> as historical order data.
+                                </p>
+                                <div className="flex space-x-3">
+                                    <Button
+                                        variant="bordered"
+                                        onClick={() => setShowHistoricalConfirmation(false)}
+                                        className="flex-1 px-4 py-2"
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        color="primary"
+                                        onClick={() => {
+                                            setShowHistoricalConfirmation(false);
+                                            handleAddHistoricalData();
+                                        }}
+                                        className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700"
+                                        startContent={<Icon icon="lucide:check" className="w-4 h-4" />}
+                                    >
+                                        Confirm & Add
+                                    </Button>
                                 </div>
                             </div>
                         </div>

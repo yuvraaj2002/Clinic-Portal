@@ -387,7 +387,7 @@ export interface ReceiptsResponse {
 // Function to fetch receipts/invoices for a contact
 export const getContactReceipts = async (contactId: string): Promise<ReceiptsResponse> => {
     console.log('Fetching receipts for contact ID:', contactId);
-    const endpoint = `/provider/contact-data?contact_id=${encodeURIComponent(contactId)}`;
+    const endpoint = `/provider/contact-receipts?contact_id=${encodeURIComponent(contactId)}`;
     console.log('Contact receipts API endpoint:', endpoint);
 
     const response = await apiCall(endpoint);
@@ -520,6 +520,105 @@ export const updateContactAdmin = async (contactId: string, updateData: any): Pr
 
     const data = await response.json();
     console.log('Update Contact Admin API Success Response:', data);
+    return data;
+};
+
+// Function to update contact data only (Scenario 1: Update Current Data)
+export const updateContactOnly = async (contactId: string, updateData: Partial<PatientData>): Promise<any> => {
+    console.log('Updating contact data only for contact ID:', contactId);
+    console.log('Update data:', updateData);
+
+    const response = await apiCall('/provider/update-contact', {
+        method: 'PUT',
+        body: JSON.stringify({
+            contact_id: contactId,
+            update_data: updateData
+        })
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Update Contact Only API Error Response:', errorData);
+        throw new Error(errorData.detail || errorData.message || 'Failed to update contact data');
+    }
+
+    const data = await response.json();
+    console.log('Update Contact Only API Success Response:', data);
+    return data;
+};
+
+// Function to add historical data (Scenario 2: Add Historical Data)
+export const addHistoricalData = async (contactId: string, updateData: Partial<PatientData>, addData: Partial<PatientData>): Promise<any> => {
+    console.log('Adding historical data for contact ID:', contactId);
+    console.log('Update data:', updateData);
+    console.log('Add data:', addData);
+
+    const response = await apiCall('/provider/update-contact', {
+        method: 'PUT',
+        body: JSON.stringify({
+            contact_id: contactId,
+            update_data: updateData,
+            add_data: addData
+        })
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Add Historical Data API Error Response:', errorData);
+        throw new Error(errorData.detail || errorData.message || 'Failed to add historical data');
+    }
+
+    const data = await response.json();
+    console.log('Add Historical Data API Success Response:', data);
+    return data;
+};
+
+// Interface for historical data record
+export interface HistoricalDataRecord {
+    id: number;
+    contact_id: string;
+    date_ordered: string;
+    order_type: string;
+    patient_name: string;
+    patient_dob: string;
+    phone_number: string;
+    medication_ordered: string;
+    patient_shipping_address: string;
+    referred_by: string;
+    payment_status: string;
+    payment_amount: number;
+    shipping_payment: number;
+    shipping_status: string;
+    tracking_number: string | null;
+    date_delivered: string | null;
+    pickup_or_delivery: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface HistoricalDataResponse {
+    success: boolean;
+    contact_id: string;
+    total_records: number;
+    records: HistoricalDataRecord[];
+}
+
+// Function to fetch historical data for a contact
+export const getContactHistoricalData = async (contactId: string): Promise<HistoricalDataResponse> => {
+    console.log('Fetching historical data for contact ID:', contactId);
+    const endpoint = `/provider/contact-data/${encodeURIComponent(contactId)}`;
+    console.log('Historical data API endpoint:', endpoint);
+
+    const response = await apiCall(endpoint);
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Historical Data API Error Response:', errorData);
+        throw new Error(errorData.detail || errorData.message || 'Failed to fetch historical data');
+    }
+
+    const data = await response.json();
+    console.log('Historical Data API Success Response:', data);
     return data;
 };
 

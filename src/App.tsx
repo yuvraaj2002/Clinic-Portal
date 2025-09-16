@@ -12,6 +12,7 @@ import { getPatients, getContactReceipts, PatientData, PatientsResponse, Receipt
 import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs';
 import { DateRangePicker } from './components/ui/date-range-picker';
 import SortedReceiptsTable from './components/SortedReceiptsTable';
+import HistoricalDataModal from './components/HistoricalDataModal';
 
 
 // Format currency amounts with proper dollar sign and decimal formatting
@@ -102,6 +103,11 @@ const App: React.FC = () => {
   const [receipts, setReceipts] = React.useState<ReceiptData[]>([]);
   const [receiptsLoading, setReceiptsLoading] = React.useState(false);
   const [receiptsError, setReceiptsError] = React.useState<string | null>(null);
+
+  // Historical data modal state
+  const [showHistoricalModal, setShowHistoricalModal] = React.useState(false);
+  const [historicalContactId, setHistoricalContactId] = React.useState<string>('');
+  const [historicalPatientName, setHistoricalPatientName] = React.useState<string>('');
 
   // Export functionality state
   const [isExporting, setIsExporting] = React.useState(false);
@@ -301,6 +307,25 @@ const App: React.FC = () => {
     setSelectedPatient(null);
     setReceipts([]);
     setReceiptsError(null);
+  };
+
+  // Handle view historical data
+  const handleViewHistoricalData = (patient: PatientData) => {
+    if (!patient.contact_id) {
+      console.error('Contact ID is missing from patient data');
+      return;
+    }
+
+    setHistoricalContactId(patient.contact_id);
+    setHistoricalPatientName(patient["Patient Name"] || 'Unknown Patient');
+    setShowHistoricalModal(true);
+  };
+
+  // Handle close historical data modal
+  const handleCloseHistoricalModal = () => {
+    setShowHistoricalModal(false);
+    setHistoricalContactId('');
+    setHistoricalPatientName('');
   };
 
   const fetchReceipts = async (contactId: string) => {
@@ -634,8 +659,16 @@ const App: React.FC = () => {
                                       </h3>
                                     </div>
                                     <div className="ml-3">
-                                      <div className="w-10 h-10 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-full flex items-center justify-center shadow-sm">
-                                        <Icon icon="lucide:user" className="w-5 h-5 text-white" />
+                                      {/* Historical Data Icon */}
+                                      <div
+                                        className="w-10 h-10 bg-gradient-to-r from-secondary-500 to-primary-500 rounded-full flex items-center justify-center shadow-sm cursor-pointer hover:shadow-lg transition-all duration-200"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleViewHistoricalData(patient);
+                                        }}
+                                        title="View Historical Data"
+                                      >
+                                        <Icon icon="lucide:history" className="w-5 h-5 text-white" />
                                       </div>
                                     </div>
                                   </div>
@@ -1051,6 +1084,14 @@ const App: React.FC = () => {
           </div>
         )
       }
+
+      {/* Historical Data Modal */}
+      <HistoricalDataModal
+        isOpen={showHistoricalModal}
+        onClose={handleCloseHistoricalModal}
+        contactId={historicalContactId}
+        patientName={historicalPatientName}
+      />
     </Router >
   );
 };
