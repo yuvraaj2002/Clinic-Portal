@@ -686,7 +686,7 @@ const AdminPage: React.FC = () => {
                                                     <div>
                                                         <h2 className="text-xl font-semibold text-gray-900">Active Provider Tags</h2>
                                                         <p className="text-sm text-gray-600 mt-1">
-                                                            {activeProvidersData?.statistics?.description} ({uniqueProviderTags.length} total)
+                                                            Provider tags for your account ({uniqueProviderTags.length} total)
                                                         </p>
                                                     </div>
                                                 </div>

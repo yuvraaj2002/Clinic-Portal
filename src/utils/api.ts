@@ -285,14 +285,10 @@ export interface ProvidersResponse {
     active_providers_count: number;
 }
 
-// Interface for the new active-non-admin-providers API response
+// Interface for provider list-tags API response
 export interface ActiveNonAdminProvidersResponse {
     success: boolean;
     provider_tags: string[];
-    statistics: {
-        total_unique_provider_tags: number;
-        description: string;
-    };
 }
 
 export interface ContactDetailsResponse {
@@ -441,22 +437,22 @@ export const getAllProviders = async (): Promise<any> => {
     return data;
 };
 
-// Function to fetch active non-admin providers (admin only)
+// Function to fetch provider tags (list-tags endpoint)
 export const getActiveNonAdminProviders = async (): Promise<ActiveNonAdminProvidersResponse> => {
-    console.log('Fetching active non-admin providers for admin user');
-    const endpoint = '/provider/active-non-admin-providers';
-    console.log('Active non-admin providers API endpoint:', endpoint);
+    console.log('Fetching provider tags');
+    const endpoint = '/provider/list-tags';
+    console.log('Provider list-tags API endpoint:', endpoint);
 
     const response = await apiCall(endpoint);
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error('Active Non-Admin Providers API Error Response:', errorData);
-        throw new Error(errorData.detail || errorData.message || 'Failed to fetch active non-admin providers');
+        console.error('Provider list-tags API Error Response:', errorData);
+        throw new Error(errorData.detail || errorData.message || 'Failed to fetch provider tags');
     }
 
     const data = await response.json();
-    console.log('Active Non-Admin Providers API Success Response:', data);
+    console.log('Provider list-tags API Success Response:', data);
     return data;
 };
 

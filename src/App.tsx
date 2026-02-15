@@ -235,9 +235,9 @@ const App: React.FC = () => {
     }
   };
 
-  // Load patients when component mounts
+  // Load patients when component mounts (only for non-admin: admin uses AdminPage and fetches on card click)
   React.useEffect(() => {
-    if (isAuthenticated && user) {
+    if (isAuthenticated && user && !user?.provider_admin) {
       fetchPatients(dateFilter, customDateRange);
       // Show welcome card for new login/signup
       setShowWelcomeCard(true);
@@ -248,9 +248,9 @@ const App: React.FC = () => {
     }
   }, [isAuthenticated, user]);
 
-  // Fetch patients when filter changes
+  // Fetch patients when filter changes (only for non-admin)
   React.useEffect(() => {
-    if (isAuthenticated && user) {
+    if (isAuthenticated && user && !user?.provider_admin) {
       fetchPatients(dateFilter, customDateRange);
       setCurrentPage(1); // Reset to first page when filter changes
     }
