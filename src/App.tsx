@@ -425,6 +425,10 @@ const App: React.FC = () => {
           <SetPassword onAuthSuccess={handleAuthSuccess} />
         </Route>
 
+        <Route path="/provider-signup/confirm">
+          <SetPassword onAuthSuccess={handleAuthSuccess} />
+        </Route>
+
         <Route path="/reset-password">
           <ResetPassword />
         </Route>
