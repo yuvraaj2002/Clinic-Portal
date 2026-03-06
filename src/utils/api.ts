@@ -628,7 +628,7 @@ export const forgotPassword = async (email: string) => {
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, portal: true }),
+        body: JSON.stringify({ email, provider_portal: true }),
     });
 
     console.log('Forgot password response status:', response.status);
@@ -684,7 +684,7 @@ export const resetPassword = async (token: string, newPassword: string) => {
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ token, new_password: newPassword, portal: true }),
+        body: JSON.stringify({ token, new_password: newPassword }),
     });
 
     console.log('Reset password response status:', response.status);
